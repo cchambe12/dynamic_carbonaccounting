@@ -23,7 +23,7 @@ class InvYearRange(NamedTuple):
     """Typing class for inventory year range values
     """
     min: int = 2014
-    max: int = 2019
+    max: int = 2024
 
 
 @dataclass
@@ -39,7 +39,7 @@ class PlotCollection:
     inv_range: InvYearRange = InvYearRange()
     plots: list[str] = field(default_factory=list)
     ba_minimum: int = 50
-    ecoregion: int = 223
+    #ecoregion: int = 223
 
     def __post_init__(self):
         """Automatically query and filter FIA plot after initialization
@@ -55,8 +55,7 @@ class PlotCollection:
         # Configure the query string and query the PLOT table
         qstr = f"SELECT CN FROM PLOT WHERE \
                 DESIGNCD = 1 \
-                AND INVYR >= {self.inv_range.min} AND INVYR <= {self.inv_range.max} \
-                AND SUBSTR(REPLACE(ECOSUBCD, ' ', ''), 1, 3) = '{self.ecoregion}';"
+                AND INVYR >= {self.inv_range.min} AND INVYR <= {self.inv_range.max};" 
         plots = pd.read_sql_query(qstr, db)
 
         # Configure the query string and query the CONDITION table
@@ -84,5 +83,12 @@ class OAK (PlotCollection):
     ftg_range: FTGRange = FTGRange(min=500, max=599)
     ba_minimum: int = 50
 
+@dataclass
+class MBB(PlotCollection):
+    """Plot collection sub class for maple/beech/birch forest type
+    """
+
+    ftg_range: FTGRange = FTGRange(min=800, max=899)
+    ba_minimum: int = 50
 
 

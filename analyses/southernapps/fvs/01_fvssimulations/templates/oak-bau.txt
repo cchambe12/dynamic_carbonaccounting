@@ -68,7 +68,7 @@ End
 ! Compute target basal area each cycle
 ! MUST ADUJUST the BAtarget to be one minus the typical BA removal during harvest discovered in the BAU_template.Rmd
 COMPUTE           0 
-BAtarget = 0.65*BBA 
+BAtarget = 0.48*BBA 
 END
 
 ! In the first cycle set YSH to allow harvest at year xx
