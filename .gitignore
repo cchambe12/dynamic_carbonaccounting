@@ -5,18 +5,22 @@
 *analyses/northeast/output/
 *analyses/northeast/fvs/01_fvssimulations/output/
 *analyses/northeast/fvs/02_carbonaccounting/output/
+analyses/northeast/BAU_northeast.html
 
 *analyses/northwoods/output/
 *analyses/northwoods/fvs/01_fvssimulations/output/
 *analyses/northwoods/fvs/02_carbonaccounting/output/
+analyses/northwoods/BAU_northwoods.html
 
 *analyses/centralapps/output/
 *analyses/centralapps/fvs/01_fvssimulations/output/
 *analyses/centralapps/fvs/02_carbonaccounting/output/
+analyses/centralapps/BAU_centralapps.html
 
 *analyses/southernapps/output/
 *analyses/southernapps/fvs/01_fvssimulations/output/
 *analyses/southernapps/fvs/02_carbonaccounting/output/
+analyses/southernapps/BAU_southernapps.html
 
 *.html
 **.html
