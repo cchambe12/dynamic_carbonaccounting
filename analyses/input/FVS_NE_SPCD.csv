@@ -1,0 +1,110 @@
+SPPGROUP,SPPNUM,SPPCD,SPCD,PLANTSCD,SCI_NAME,COM_NAME
+1,1,BF,12,ABBA ,Abies balsamea,balsam fir
+2,2,TA,71,LALA ,Larix laricina,tamarack
+3,3,WS,94,PIGL ,Picea glauca,white spruce
+4,4,RS,97,PIRU ,Picea rubens,red spruce
+4,5,NS,91,PIAB ,Picea abies,Norway spruce
+4,6,BS,95,PIMA ,Picea mariana,black spruce
+4,7,PI,90,PICEA ,Picea,spruce
+5,8,RN,125,PIRE ,Pinus resinosa,red pine
+6,9,WP,129,PIST ,Pinus strobus,eastern white pine
+7,10,LP,131,PITA ,Pinus taeda,loblolly pine
+8,11,VP,132,PIVI2 ,Pinus viginiana,Virginia pine
+9,12,WC,241,THOC2 ,Thuja occidentalis,arborvitae
+9,13,AW,43,CHTH2 ,Chamaecyparis thyoides,Atlantic white cedar
+9,14,RC,68,JUVI ,Juniperus virginiana,eastern redcedar
+9,15,JU,57,JUNIP ,Juniperus,juniper
+10,16,EH,261,TSCA ,Tsuga canadensis,eastern hemlock
+10,17,HM,260,TSUGA ,Tsuga,hemlock
+11,18,OP,100,PINUS ,Pinus,pine
+11,19,JP,105,PIBA2 ,Pinus banksiana,jack pine
+11,20,SP,110,PIEC2 ,Pinus echinata,shortleaf pine
+11,21,TM,123,PIPU5 ,Pinus pungens,Table Mountain pine
+11,22,PP,126,PIRI ,Pinus rigida,pitch pine
+11,23,PD,128,PISE ,Pinus serotina,pond pine
+11,24,SC,130,PISY ,Pinus sylvestris,Scots pine
+11,25,OS,299,2TN , ,other softwood3
+12,26,RM,316,ACRU ,Acer rubrum,red maple
+13,27,SM,318,ACSA3 ,Acer saccharum,sugar maple
+13,28,BM,314,ACNI5 ,Acer nigrum,black maple
+13,29,SV,317,ACSA2 ,Acer saccharinum,silver maple
+14,30,YB,371,BEAL2 ,Betula alleghaniensis,yellow birch
+14,31,SB,372,BELE ,Betula lenta,sweet birch
+14,32,RB,373,BENI ,Betula nigra,river birch
+15,33,PB,375,BEPA ,Betula papyrifera,paper birch
+15,34,GB,379,BEPO ,Betula populifolia,gray birch
+16,35,HI,400,CARYA ,Carya,hybrid hickory
+16,36,PH,403,CAGL8 ,Carya glabra,pignut hickory
+16,37,SL,405,CALA21 ,Carya laciniosa,shellbark hickory
+16,38,SH,407,CAOV2 ,Carya ovata,shagbark hickory
+16,39,MH,409,CAAL27 ,Carya alba,mockernut hickory
+17,40,AB,531,FAGR ,Fagus grandifolia,American beech
+18,41,AS,540,FRAXI ,Fraxinus,ash
+18,42,WA,541,FRAM2 ,Fraxinus americana,white ash
+18,43,BA,543,FRNI ,Fraxinus nigra,black ash
+18,44,GA,544,FRPE ,Fraxinus pennsylvanica,green ash
+18,45,PA,545,FRPR ,Fraxinus profunda,pumpkin ash
+19,46,YP,621,LITU ,Liriodendron tulipifera,tuliptree
+19,47,SU,611,LIST2 ,Liquidamber styraciflua,sweetgum
+19,48,CT,651,MAAC ,Magnolia acuminata,cucumber tree
+20,49,QA,746,POTR5 ,Populus tremuloides,quaking aspen
+20,50,BP,741,POBA2 ,Populus balsamifera,balsam poplar
+20,51,EC,742,PODE3 ,Populus deltoides,eastern cottonwood
+20,52,BT,743,POGR4 ,Populus grandidentata,bigtooth aspen
+20,53,PY,744,POHE4 ,Populus ,swamp cottonwood
+,,,,,heterophylla,
+21,54,BC,762,PRSE2 ,Prunus serotina,black cherry
+22,55,WO,802,QUAL ,Quercus alba,white oak
+22,56,BR,823,QUMA2 ,Quercus macrocarpa,bur oak
+22,57,CK,826,QUMU ,Quercus muehlenbergii,chinkapin oak
+22,58,PO,835,QUST ,Quercus stellata,post oak
+22,59,OK,800,QUERC ,Quercus,oak
+23,60,SO,806,QUCO2 ,Quercus coccinea,scarlet oak
+23,61,QI,817,QUIM ,Quercus imbricaria,shingle oak
+23,62,WK,827,QUNI ,Quercus nigra,water oak
+23,63,PN,830,QUPA2 ,Quercus palustris,pin oak
+24,64,CO,832,QUPR2 ,Quercus prinus,chestnut oak
+24,65,SW,804,QUBI ,Quercus bicolor,swamp white oak
+24,66,SN,825,QUMI ,Quercus michauxii,swamp chestnut oak
+25,67,RO,833,QURU ,Quercus rubra,northern red oak
+25,68,SK,812,QUFA ,Quercus falcata,southern red oak
+26,69,BO,837,QUVE ,Quercus velutina,black oak
+26,70,CB,813,QUPA5 ,Quercus pagoda,cherrybark oak
+27,72,BU,330,AESCU ,Aesculus,buckeye
+27,73,YY,332,AEFL ,Aesculus flava,yellow buckeye
+27,74,WR,374,BEOC2 ,Betula occidentalis,water birch
+27,75,HK,462,CEOC ,Celtis occidentalis,common hackberry
+27,76,PS,521,DIVI5 ,Diospyros virginiana,common persimmon
+27,77,HY,591,ILOP ,Ilex opaca,American holly
+27,78,BN,601,JUCI ,Juglans cinerea,butternut
+27,79,WN,602,JUNI ,Juglans nigra,black walnut
+27,80,OO,641,MAPO ,Maclura pomifera,Osage-orange
+27,81,MG,650,MAGNO ,Magnolia,magnolia
+27,82,MV,653,MAVI2 ,Magnolia virginiana,sweetbay
+27,83,AP,660,MALUS ,Malus,apple
+27,84,WT,691,NYAQ2 ,Nyssa aquatica,water tupelo
+27,85,BG,693,NYSY ,Nyssa sylvatica,blackgum  
+27,86,SD,711,OXAR ,Oxydendrum arboreum,sourwood
+27,87,PW,712,PATO2 ,Paulownia tomentosa,princesstree
+27,88,SY,731,PLOC ,Platanus occidentalis,American sycamore
+27,89,WL,831,QUPH ,Quercus phellos,willow oak
+27,90,BK,901,ROPS ,Robinia pseudoacacia,black locust
+27,91,BL,922,SANI ,Salix nigra,black willow
+27,92,SS,931,SAAL5 ,Sassafras albidum,sassafras
+27,93,BW,951,TIAM ,Tilia americana,American basswood
+27,94,WB,952,TIAMH ,Tilia americana var. ,white basswood4 
+,,,,,heterophylla,
+27,95,EL,970,ULMUS ,Ulmus,elm
+27,96,AE,972,ULAM ,Ulmus americana,American elm
+27,97,RL,975,ULRU ,Ulmus rubra,slippery elm
+28,98,OH,998,2TB , ,other hardwood3
+28,99,BE,313,ACNE2 ,Acer negundo,boxelder
+28,100,ST,315,ACPE ,Acer pensylvanicum,striped maple
+28,101,AI,341,AIAL ,Ailanthus altissima,tree of heaven
+28,102,SE,356,AMELA ,Amelanchier,serviceberry
+28,103,AH,391,CACA18 ,Carpinus caroliniana,American hornbeam
+28,104,DW,491,COFL2 ,Cornus florida,flowering dogwood
+28,105,HT,500,CRATA ,Crataegus,hawthorn
+28,106,HH,701,OSVI ,Ostrya virginiana,hophornbeam
+28,107,PL,760,PRUNU ,Prunus,plum
+28,108,PR,761,PRPE2 ,Prunus pensylvanica,pin cherry

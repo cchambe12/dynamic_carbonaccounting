@@ -1,0 +1,1220 @@
+---
+title: "BAU Template"
+author: "" 
+date: "`r Sys.Date()`"
+output: 
+  slidy_presentation:
+    theme: cerulean
+    highlight: pygments
+    center: true
+    self-contained: TRUE
+
+---
+
+
+
+## Selecting FIA data
+
+For initial exploration of the data, we will first get FIA plots from **AL, GA, KY, NC, SC, TN, and VA**. We are downloading data directly from DataMart for most up to date information. Please modify the above states as necessary. We are then subsetting to ecosections **221, 223, 231, M221**. Again, please modify as necessary.  
+
+To clean the data, we are only selecting FIA data that was measured in 1997 or later, when annualized data began. Finally, we are selecting plots that:
+
+1. Have accessible forestland
+2. Are not reserves
+3. Are of private ownership
+4. Are single condition class
+6. Are of **Maple / beech / birch group and Oak / hickory group** forest types
+
+
+```{r, setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+
+### housekeeping
+rm(list=ls()) 
+options(stringsAsFactors = FALSE)
+options(timeout = 5000)
+
+# Load Libraries
+library(ggplot2)
+library(plotly)
+library(viridis)
+library(RColorBrewer)
+library(dplyr)
+library(tidyr)
+library(gridExtra)
+library(kableExtra)
+library(rFIA)
+library(sjPlot)
+library(sjlabelled)
+library(sjmisc)
+library(lme4)
+library("ggsci")
+
+#### Do you want to subset to specific ecosections? If yes, make "TRUE", if no, make "FALSE"
+use.ecosections = TRUE #**ADJUST AS NECESSARY**
+
+## Input variables to standardize approach across regions
+states <- c("AL", "GA", "KY", "NC", "SC", "TN", "VA") #**ENTER STATE ABBREVIATIONS HERE**
+fullstatelist <- c("Alabama", "Georgia", "Kentucky", "North Carolina", 
+                   "South Carolina", "Tennessee", "Virginia") #**ENTER STATE NAMES HERE**
+region <- "southernapps"  #**ENTER REGION FOLDER NAME HERE**
+
+if(use.ecosections==TRUE){
+ecosubstokeep <- c("221", "223", "231", "M221")  #**ENTER ECOSECTIONS HERE**
+}
+
+
+### Organize these in alphabetical order to have consistent and accurate outputs
+forestname1 <- "Maple / beech / birch group"  #**ENTER FIRST FOREST NAME HERE (in alphabetical order)**
+forestname2 <- "Oak / hickory group" #**ENTER SECOND FOREST NAME HERE (in alphabetical order)**
+
+### Add in species level and forest level detail
+specieslist <- read.csv("../input/2021_MasterSpecies.csv")
+specieslist <- subset(specieslist, select = c("FIA.Code", "Common.Name"))
+names(specieslist) <- c("spcd", "species")
+
+forests <- read.csv("../input/REF_FOREST_TYPE.csv")
+forests <- subset(forests, select=c(TYPGRPCD, MEANING, VALUE))
+names(forests) <- c("fortypgrpcd", "forestsubtype", "fortypcd")
+
+forestgroup <- read.csv("../input/REF_FOREST_TYPE_GROUP.csv") %>%
+  dplyr::select(VALUE, MEANING) %>%
+  rename(fortypgrpcd = VALUE) %>%
+  rename(forestname = MEANING) %>%
+  left_join(forests, multiple = "all")
+
+### Combine states list to build a dataframe to join with counties list
+statedf <- data.frame(stateabbr=states, State=fullstatelist)
+
+## Prepare FIPS to line up PLOT table to counties we're enrolling
+fips <- read.csv("../input/fips.csv")
+fips$statecd <- as.numeric(substr(fips$FIPS, 1, nchar(fips$FIPS)-3))
+fips$countycd <- as.numeric(substr(fips$FIPS, nchar(fips$FIPS)-2, nchar(fips$FIPS)))
+
+
+```
+
+```{r error=TRUE, message=TRUE, include=FALSE, eval=TRUE}
+options(timeout = 8000)
+## Pull data from FIA
+if(file.exists(paste0("../../fiadata/", region, "/",
+                      states[1], "_TREE.csv"))){
+  
+  # Check date of when the file was last downloaded - this assumes you downloaded all FIA files at the same time
+  print(file.info(paste0("../../fiadata/", region, "/", states[1], "_TREE.csv"))$ctime)
+  c
+}else {
+  
+  for(i in c(states)){
+getFIA(states = i, tables = c("POP_ESTN_UNIT", "POP_EVAL", "POP_EVAL_GRP", "POP_EVAL_TYP",
+    "POP_PLOT_STRATUM_ASSGN", "POP_STRATUM", "TREE", "PLOT", "COND", "COND_DWM_CALC"), load=FALSE,
+              dir=paste0("../../fiadata/", region))
+  }
+}
+
+fia <- readFIA(paste0("../../fiadata/", region))
+
+```
+
+
+
+```{r error=TRUE, message=TRUE, include=FALSE, eval=TRUE}
+# Combining states' plots into one dataframe
+allplot <- fia$PLOT
+names(allplot) <- tolower(names(allplot))
+
+
+### Add in traits to calculate relative density and also for desirability codes
+traits = read.csv("../input/Species Traits.csv")
+
+
+# Combining states' trees into one dataframe
+tree = fia$TREE
+names(tree) <- tolower(names(tree))
+
+## Remove data from periodic inventories (prior to annualized plot design)
+## to reduce file storage size
+tree = tree[which(tree$invyr>1997), ]
+
+# Specific Gravity (for RD calculation)
+tree$spec.grav = traits[match(tree$spcd, traits$spcd), "spec.grav"]
+
+# Desirability
+tree$desire = traits[match(tree$spcd, traits$spcd), "desire"]
+tree$desire.fac = traits[match(tree$spcd, traits$spcd), "desire.fac"]
+
+### Clean up BA and Volume metrics
+tree <- tree %>%
+mutate(tpa.custom = case_when( is.na(tpa_unadj) & dia < 5 ~ 74.965282,
+                                 is.na(tpa_unadj) & dia >= 5 ~ 6.018046,
+                                 TRUE ~ tpa_unadj),
+  ##### Calculate additional variables  
+         # Basal area
+         ba = dia^2 * 0.005454 ,
+         # Calculate basal area per acre
+         baac = ba * tpa.custom,
+         # per acre gross cubic-foot volume for total volume
+         volcfgrs.ac = volcfgrs * tpa.custom,
+         # per acre gross cubic-foot sawlog volume of a sawtimber tree for sawlog metric
+         volcsnet.ac = volcsnet * tpa.custom,
+         # per acre gross board-foot sawlog volume of a sawtimber tree for sawlog metric in board feet
+         volbfgrs.ac = volbfgrs * tpa.custom)
+
+
+# Lorey Height is the average height of all trees in a stand weighted by tree basal area
+# To calculate Lorey Height, see Matt Russell's blog post here: https://arbor-analytics.com/post/2023-04-21-lorey-s-height-the-remote-sensing-way-to-estimate-tree-height/
+# Or here: https://doi.org/10.1016/S0378-1127(01)00737-X
+tree$ba_part_lorey = ifelse(is.na(tree$actualht), NA, tree$baac)
+tree$lorey_ht_part = tree$ba_part_lorey*tree$actualht
+
+# Relative density - calculated from Ducey-Knapp
+tree$rd = 2.47 * (0.00015 + (0.00218 * tree$spec.grav)) * ((tree$dia/10)^1.6)     
+tree$rd.ac = tree$rd * tree$tpa.custom 
+
+## per acre proxy for stem biomass = Gross volume * specific gravity
+# this variable was identified as a desired dependent variable for later regressions
+# in 6-2-2020 meeting w/ David Shoch & Ethan Belair. 
+tree$stem.bio.ac = tree$volcfgrs * tree$tpa.custom * tree$spec.grav
+
+# Aboveground, belowground, and total C
+tree$ag_mtco2eac = tree$carbon_ag * tree$tpa.custom/2204.6*(44/12) ## 44/12 is the molar ratio for converting C to CO2
+
+tree$bg_mtco2eac = tree$carbon_bg * tree$tpa.custom/2204.6*(44/12)
+
+tree$total_mtco2eac = tree$ag_mtco2eac + tree$bg_mtco2eac
+
+# Add the previous plot sequence to each tree from the plot table
+  # this will be used to link individual trees and plot level summaries to their previous (T2) measurements
+    tree$prev.plt.cn = allplot[match(tree$plt_cn, allplot$cn), "prev_plt_cn"]
+  
+  # Add the next previous plot sequence to each tree from the plot table
+  # this will be used to link individual trees and plot level summaries to their previous (T3) measurements
+    tree$prev.prev.plt.cn = allplot[match(tree$prev.plt.cn, allplot$cn), "prev_plt_cn"]
+    
+  # Add the next, next previous plot sequence to each tree from the plot table
+  # this will be used to link individual trees and plot level summaries to their T4 measurements
+    tree$prev.prev.prev.plt.cn = allplot[match(tree$prev.prev.plt.cn, allplot$cn), "prev_plt_cn"]
+    
+### Add in previous diameters and statuses for the % removal codes
+# This loop filters to find those cns that are the prev.cn for a different tree, takes the dia, statuscd, baac, relative density, and tpa for those trees, and then right joins to the original - so if there is a new tree with no prev cn, the dia, statuscd, baac, rd, and tpa are filled in as NAs.
+tree = tree %>%
+  ## Add in previous measurements for rd.perc.cut and baac.perc.cut
+  filter(cn %in% unique(prev_tre_cn)) %>%
+  select(cn, dia, statuscd, baac, rd.ac, tpa.custom, volbfgrs.ac) %>%
+  rename_with(~paste0(., ".prev")) %>%
+  rename(prev_tre_cn = cn.prev) %>%
+  right_join(tree)
+
+
+# Combining states' COND tables into one dataframe
+cond = fia$COND
+names(cond) = tolower(names(cond))
+cond = cond[which(cond$invyr>1997), ]
+
+
+## Clean up TREE and COND to only include relevant plots
+# Subset to remove plots reserved from management for wood products
+# Add reservcd to Tree table from Condition table
+# Then subset the Condition table to remove plots reserved from management for wood products.
+# The reservcd variable codes plots as 1 = reserved or 0 = not reserved.
+tree$reservcd = cond[match(tree$plt_cn, cond$plt_cn), "reservcd"]
+# Subset to include only land on which timber harvesting is allowed 
+tree = tree[which(tree$reservcd == 0), ]
+# We only subset in the tree table for now, but this is cleaned when we later join with the cond and plot tables
+
+
+# Subset to remove plots that span multiple conditions
+# Subset the Condition table to remove plots with multiple condition status codes.
+# The condrprop_unadj variable shows the proportion of a plot that is in a given condition.
+# Thus if condprop_unadj = 1, the plot is entirely within a single condition.
+# Remove plots from cond table that have multiple condition status codes (split cover types/owners/landuses)
+cond = cond[which(cond$condprop_unadj==1), ]
+
+# Then, subset the tree table, keeping only rows indicating single condition plots
+# Add conprop_unadj to tree table
+tree$unsplit = cond[match(tree$plt_cn, cond$plt_cn), "condprop_unadj"]
+
+# Subset tree table to keep only trees from intact/unsplit plots
+tree = tree[which(tree$unsplit==1), ]  
+
+
+# Remove trees from plots with plot_status_cd indicating non-sampled plots (plot_status_cd == 3)
+# or sampled plots with no accessible forestland (plot_status_cd == 2)
+# Add plot_status_cd from plot table to tree table
+tree$plot_status_cd = allplot[match(tree$plt_cn, allplot$cn), "plot_status_cd"]
+tree = tree[tree$plot_status_cd==1,]
+
+### Requires a remeasurement per the methodology so remove any plots without previous measurements
+tree <- tree %>%
+  filter(!is.na(prev.plt.cn))
+
+## Clean up COND table to remove nas
+cond = cond[!is.na(cond$owncd),]
+
+### Join up cleaned TREE and COND
+trees <- left_join(tree, cond, by=c("plt_cn", "invyr", "statecd", "countycd", "unitcd", "plot"),
+                   relationship="many-to-many")
+
+#write.csv(trees, file="output/trees.csv", row.names=FALSE)
+
+```
+
+
+```{r eval=TRUE, include=FALSE}
+## Clean PLOT table and subset to ecosections of interest
+
+allplot = allplot %>%
+  filter(invyr > 1997) %>%
+  dplyr::select("cn", "ecosubcd", "statecd", "countycd", "unitcd", "lat", "lon", "elev", 
+                "measmon", "measday", "measyear", "remper") %>% 
+  mutate(ecosub = substr(ecosubcd, 1, nchar(ecosubcd)-2),
+         countyid = paste(statecd, countycd),
+         measdate = as.Date(paste(measmon, measday, measyear, sep="-"), format="%m-%d-%Y")) %>%
+    rename(plt_cn = cn) %>%
+  filter(!is.na(ecosub))
+
+if(use.ecosections==TRUE){
+  
+  allplot <- allplot %>% filter(ecosub %in% c(ecosubstokeep)) 
+  
+}
+
+treeplot = left_join(trees, allplot)
+
+
+################################################################################
+################# Next, we need to clean up the treelist #######################
+################################################################################
+
+### Step 1: Getting plot level summaries
+dat_grouped <- treeplot %>%
+  dplyr::mutate(current = dia >= 5,
+                harv = statuscd.prev == 1 & dia.prev >= 5 & statuscd == 3,
+                mort = statuscd.prev == 1 & statuscd == 2,
+                prevall = statuscd.prev == 1 & volbfgrs.ac == 0,
+                standall = statuscd == 1 & statuscd.prev == 1,
+                prev = dia.prev >= 5 &  statuscd.prev == 1,
+                stand = statuscd.prev == 1 & statuscd == 1 & dia.prev >= 5) %>%
+  group_by(plt_cn) %>%
+  summarize(across(c(ecosub, ecosubcd, statecd, countycd, plot, unitcd, lat, lon, fortypcd, owngrpcd, stdorgcd, invyr, remper, measdate, prev.plt.cn, prev.prev.plt.cn, prev.prev.prev.plt.cn, dstrbcd1, 
+                     dstrbcd2, dstrbcd3, stdage, siteclcd, spgrpcd,
+                     gsstk, elev,  slope, aspect, trtcd1, harvest_type1_srs, physclcd), function(x) first(na.omit(x))),
+            ## Calculate % BA removed
+            baac.perc.cut = (sum(baac.prev[harv], na.rm=TRUE))/sum(baac.prev[prev], na.rm=TRUE),
+            ## Sum species desireability from previous measurement
+            desire.prev = sum(desire[prev] * (baac[prev]/sum(baac[prev], na.rm=TRUE)), na.rm=TRUE),
+            ## Identify species desireability of harvested trees
+            avg.desire.harv = sum(desire[harv] * (baac[harv]/sum(baac[harv], na.rm=TRUE)), na.rm=TRUE),
+            ## Sum species desireability of remaining trees
+            avg.desire.standing = sum(desire[stand] * (baac[stand]/sum(baac[stand], na.rm=TRUE)), na.rm=TRUE),
+            ## Stand-level total Mt CO2e/acre
+            total_mtco2eac = sum(total_mtco2eac, na.rm=TRUE),
+            ## Total stand-level BAAC 
+            baac = sum(baac[current], na.rm=TRUE),
+            ## Stand-level TPA
+            tpasite = sum(tpa.custom[current], na.rm=TRUE),
+            ## Stand-level AG carbon (for covariate analysis or rapid assessments)
+            carbon_ag = sum(carbon_ag, na.rm=TRUE),
+            ## Stand-level MBF vol of sawtimber portion gross
+            volbfgrs.ac = sum(volbfgrs.ac, na.rm=TRUE),
+            ## Stand-level Lorey's Height
+            lorey_ht = sum(lorey_ht_part, na.rm = TRUE) / sum(ba_part_lorey, na.rm=TRUE),
+            ## Stand-level QMD of merchantable trees
+            qmd = sqrt(baac.merch/(0.005454 * tpasite))) %>%
+  distinct(plt_cn, .keep_all = TRUE) 
+
+## Species list is downloaded from here: https://www.fia.fs.usda.gov/library/field-guides-methods-proc/#TreeSpecList
+## Click on link FIA Master Tree Species List 9.1 (232 KB) under 'Master Tree Species List' heading
+dat_grouped <- left_join(dat_grouped, forestgroup)
+
+
+datprev = dat_grouped %>%
+  ## Add in previous measurements for invyr, measdate, rd.perc.cut, baac.perc.cut, and qmd
+  filter(plt_cn %in% unique(prev.plt.cn)) %>%
+  select(plt_cn, invyr, measdate, dstrbcd1, dstrbcd2, dstrbcd3, harvest_type1_srs,  baac.perc.cut, 
+          qmd, tpasite, trtcd1, volbfgrs.ac, baac, total_mtco2eac) %>%
+  rename_with(~paste0(., ".prev")) %>%
+  rename(prev.plt.cn = plt_cn.prev) %>%
+  right_join(dat_grouped) %>%
+  ## Calculate number of years between measurement dates for HL equation
+  mutate(timediff = lubridate::time_length(difftime(measdate, measdate.prev), "years")) 
+datprevprev = datprev %>%
+  ## Add in previous, previous measurements for rd.perc.cut, baac.perc.cut, and qmd
+  filter(plt_cn %in% unique(prev.prev.plt.cn)) %>%
+  select(plt_cn, invyr, measdate, dstrbcd1, dstrbcd2, dstrbcd3, harvest_type1_srs, total_mtco2eac,  baac.perc.cut, qmd, trtcd1, baac) %>%
+  rename_with(~paste0(., ".prev.prev")) %>%
+  rename(prev.prev.plt.cn = plt_cn.prev.prev) %>%
+  right_join(datprev)
+dat = datprevprev %>%
+  ## Add in previous, previous measurements for rd.perc.cut, baac.perc.cut, and qmd
+  filter(plt_cn %in% unique(prev.prev.prev.plt.cn)) %>%
+  select(plt_cn, qmd, trtcd1, baac, total_mtco2eac) %>%
+  rename_with(~paste0(., ".prev.prev.prev")) %>%
+  rename(prev.prev.prev.plt.cn = plt_cn.prev.prev.prev) %>%
+  right_join(datprevprev) %>%
+  ## Finally, determine when the harvest happened and how many harvests occurred
+  mutate(baac.perc.cut = ifelse(is.na(baac.perc.cut) | baac.perc.cut < 0, 0, baac.perc.cut),
+         baac.perc.cut.prev = ifelse(is.na(baac.perc.cut.prev) | baac.perc.cut.prev < 0, 0, baac.perc.cut.prev),
+         baac.perc.cut.prev.prev = ifelse(is.na(baac.perc.cut.prev.prev) | baac.perc.cut.prev.prev < 0, 0, baac.perc.cut.prev.prev),
+         harvest = ifelse((trtcd1 == 10 | baac.perc.cut >= 0.25 & dstrbcd1 == 0 )|
+                            (trtcd1.prev == 10 | baac.perc.cut.prev >= 0.25 & dstrbcd1.prev == 0 )| 
+                            (trtcd1.prev.prev == 10 | baac.perc.cut.prev.prev >= 0.25 & 
+                               dstrbcd1.prev.prev == 0), 1, 0),
+         harv1 = ifelse(trtcd1 == 10 | baac.perc.cut >= 0.25 & dstrbcd1 == 0, 1, 0),
+         harv2 = ifelse(trtcd1.prev == 10 | baac.perc.cut.prev >= 0.25 & dstrbcd1.prev == 0, 1, 0),
+         harv2 = ifelse(is.na(harv2), 0, harv2),
+         harv3 = ifelse(trtcd1.prev.prev == 10 | baac.perc.cut.prev.prev >= 0.25 & dstrbcd1.prev.prev == 0, 1, 0),
+         harv3 = ifelse(is.na(harv3), 0, harv3),
+         numharvs = harv1 + harv2 + harv3) %>% 
+  rowwise() %>% 
+  mutate(baac.remv = ifelse(harvest==1, max(baac.perc.cut, baac.perc.cut.prev, baac.perc.cut.prev.prev), 0),
+         qmdchange = ifelse(baac.remv == baac.perc.cut, qmd - qmd.prev,
+                           ifelse(baac.remv == baac.perc.cut.prev, 
+                                  qmd.prev - qmd.prev.prev, 
+                                  qmd.prev.prev - qmd.prev.prev.prev)),
+         baac.prevharv = ifelse(baac.remv == baac.perc.cut, baac.prev,
+                           ifelse(baac.remv == baac.perc.cut.prev, 
+                                  baac.prev.prev, 
+                                  baac.prev.prev.prev)),
+         qmd.prevharv = ifelse(baac.remv == baac.perc.cut, qmd.prev,
+                           ifelse(baac.remv == baac.perc.cut.prev, 
+                                  qmd.prev.prev, 
+                                  qmd.prev.prev.prev))) 
+
+```
+
+
+## Reporting Harvest likelihoods over 20-year timeframe for major forest types
+```{r, hl, message=FALSE, warning=FALSE, echo=FALSE}
+
+### Step 2: Finding initial measurements for each plot
+## We want to know what predictors lead to a harvest in the next 20 years
+
+## The following columns will change over time and we need initial measurements
+colstodupe <- c("forestname", "forestsubtype", "stdage", "gsstk", "desire.prev", 
+                "baac", "tpasite", "volbfgrs.ac", "lorey_ht", "qmd", "invyr", "total_mtco2eac")
+
+
+## Find initial measurements
+prevdf <- dat[(dat$plt_cn %in% unique(dat$prev.plt.cn)),]
+prevdf <- prevdf %>%
+  select(plt_cn, colstodupe) %>%
+  rename_with(~paste0(., ".prev")) %>%
+  rename(prev.plt.cn = plt_cn.prev) %>%
+  left_join(dat)
+
+prevprevdf <- dat[(dat$plt_cn %in% unique(dat$prev.prev.plt.cn)),]
+prevprevdf <- prevprevdf %>%
+  select(plt_cn, colstodupe) %>%
+  rename_with(~paste0(., ".prev.prev")) %>%
+  rename(prev.prev.plt.cn = plt_cn.prev.prev) %>%
+  left_join(dat)
+
+dat_initial <- full_join(prevdf, prevprevdf)
+
+
+prevprevprevdf <- dat[(dat$plt_cn %in% unique(dat$prev.prev.prev.plt.cn)),]
+prevprevprevdf <- prevprevprevdf %>%
+  select(plt_cn, colstodupe) %>%
+  rename_with(~paste0(., ".prev.prev.prev")) %>%
+  rename(prev.prev.prev.plt.cn = plt_cn.prev.prev.prev) %>%
+  left_join(dat)
+
+dat_initial <- full_join(dat_initial, prevprevprevdf)
+
+dat_initial <- dat_initial %>%
+  mutate(volbfgrs.ac.initial = ifelse(!is.na(volbfgrs.ac.prev.prev.prev),
+                                      volbfgrs.ac.prev.prev.prev,
+                              ifelse(!is.na(volbfgrs.ac.prev.prev), volbfgrs.ac.prev.prev,
+                                      ifelse(!is.na(volbfgrs.ac.prev), volbfgrs.ac.prev,
+                                             volbfgrs.ac))))
+
+datclean <- dat_initial %>%
+  filter(forestname %in% c(forestname1, forestname2),
+         !is.na(ecosub),
+         owngrpcd == 40,
+         siteclcd <= 6,
+         volbfgrs.ac.initial > 4000,
+         stdorgcd == 0,
+         (invyr - invyr.prev) <= mean(invyr - invyr.prev, na.rm=TRUE) + 2)
+
+datclean$harvest <- ifelse(datclean$trtcd1 == 10 | 
+                             datclean$baac.perc.cut >= 0.25 & datclean$dstrbcd1 == 0 |
+                             !is.na(datclean$harvest_type1_srs), 1, 0) #
+
+mbb1 <- datclean[datclean$forestname==forestname1,]
+
+numharvs_mbb1 <- nrow(mbb1[mbb1$harvest==1,])/nrow(mbb1)
+hl_mbb1 <- round(numharvs_mbb1 * (20/(mean(mbb1$timediff, na.rm=TRUE)))*100, digits=2)
+
+oh1 <- datclean[datclean$forestname==forestname2,]
+
+numharvs_oh1 <- nrow(oh1[oh1$harvest==1,])/nrow(oh1)
+hl_oh1 <- round(numharvs_oh1 * (20/(mean(oh1$timediff, na.rm=TRUE)))*100, digits=2)
+
+
+write.csv(datclean, paste0("output/clean_", region, "_fiadata.csv"), row.names=FALSE)
+
+```
+
+
+#### Using the Best Practices formula but with avg time between measurement dates rather than invyr
+
+$$\\[1in]$$
+
+### $\color{forestgreen}{\text{For `r forestname1` the harvest likelihood is: `r hl_mbb1`%}}$
+
+### $\color{forestgreen}{\text{For `r forestname2` the harvest likelihood is: `r hl_oh1`%}}$
+
+
+## Forest Types
+```{r echo=FALSE, error=FALSE, message=FALSE, warning=FALSE, fig.align='center', fig.height=5, fig.width=6}
+
+totplots <- nrow(datclean)
+
+forplot <- ggplot(datclean %>% group_by(forestname) %>% 
+                    summarize(percent = paste0(round(n()/totplots*100, digits=0), "%"),
+                              count = n()) %>%
+         arrange(desc(count)),
+       aes(fill=forestname, x=reorder(forestname, count), y=count)) +
+  geom_col(stat="count") + theme_bw() + 
+  labs(fill=NULL, x="", y="# of plots") +
+  theme(legend.position = "none") + 
+  scale_fill_viridis(discrete=TRUE) + #palette="Dark2"
+  scale_x_discrete(guide = guide_axis(angle=45)) +
+  geom_text(aes(label = percent), vjust = -0.25, check_overlap = TRUE)
+
+forplot
+
+png(paste0("figures/forestypes_", region, ".png"), 
+    width=4,
+    height=5, units="in", res = 350 )
+forplot
+invisible(dev.off())
+
+
+
+```
+
+#### Total number of plots is $\color{red}{\text{`r totplots`}}$
+
+
+## Forest transitions over time
+```{r echo=FALSE, error=FALSE, fig.align='center', fig.height=5, fig.width=11, message=FALSE, warning=FALSE}
+
+datclean <- datclean %>%
+  mutate(fortypchange =ifelse(forestname != forestname.prev, 
+                              paste(forestname.prev, "to", forestname, sep=" "),"No change"),
+         forchangetime = ifelse(forestname != forestname.prev, "Current", 
+                          ifelse(forestname.prev != forestname.prev.prev, "Previous",
+                                 "No change")))
+
+numfortypes <- nrow(datclean[!is.na(datclean$fortypchange) & datclean$fortypchange != "No change",])
+
+prevfor <- ggplot(datclean %>%
+                    filter(!is.na(fortypchange), fortypchange != "No change") %>%
+         group_by(fortypchange) %>% 
+           summarize(count = n(),
+                     percent = paste0(round(n()/numfortypes*100, digits=0), "%")) %>%
+         arrange(desc(count)) %>% slice(1:10), aes(x=reorder(fortypchange, count), y=count)) + geom_col(aes(fill=count)) +
+  theme_bw() + coord_flip() + scale_fill_viridis() + 
+  theme(legend.position = "none", plot.caption=element_text(color="red", hjust=-0.005)) +
+  labs(x="", y="") + #, caption = "Most plots did not change forest type"
+  geom_text(aes(label = percent), hjust = -0.25, check_overlap = TRUE) # 
+
+
+nochange <- nrow(datclean[datclean$fortypchange=="No change",])
+
+prevfor
+
+png(paste0("figures/foresttypechange_", region, ".png"), 
+    width=4,
+    height=5, units="in", res = 350 )
+prevfor
+invisible(dev.off())
+
+```
+
+
+#### Total number of plots that did not transition is $\color{red}{\text{`r nochange`}}$
+
+
+## Breakdown of FIA plots
+```{r echo=FALSE, message=FALSE, error=FALSE, fig.align='center'}
+
+multharv <- datclean %>% 
+  filter(numharvs>1) %>%
+  group_by(forestname) %>% 
+  summarize(`Mult harvests` = n()) %>%
+  rename(`Forest Type` = forestname) %>%
+    ungroup() %>%
+  select(`Forest Type`, `Mult harvests`) 
+
+
+harvtable <- datclean %>% 
+  filter(harvest==1) %>%
+  group_by(forestname) %>% 
+  summarize(`# harvested`= n()) %>%
+  rename(`Forest Type` = forestname) %>%
+    ungroup() %>%
+  select(`Forest Type`, `# harvested`) 
+
+#checking out # FIA plots by forest type
+grid.arrange(datclean %>% group_by(forestname) %>%  
+  summarize(`# FIA plots`=n()) %>%
+  rename(`Forest Type` = forestname) %>%
+    ungroup() %>%
+  select(`Forest Type`,  `# FIA plots`) %>% 
+    left_join(harvtable) %>%
+    left_join(multharv) %>%
+  tableGrob(theme = ttheme_default(), rows = NULL))
+
+png(paste0("figures/harvesttable_", region, ".png"), 
+    width=8,
+    height=4, units="in", res = 350 )
+grid.arrange(datclean %>% group_by(forestname) %>% 
+  summarize(`# FIA plots`=n()) %>%
+  rename(`Forest Type` = forestname) %>%
+    ungroup() %>%
+  select(`Forest Type`,  `# FIA plots`) %>% 
+    left_join(harvtable) %>%
+    left_join(multharv) %>%
+  tableGrob(theme = ttheme_default(), rows = NULL))
+invisible(dev.off())
+
+if(TRUE){
+covanalysis <- datclean %>%
+  mutate(baac.initial = ifelse(!is.na(baac.prev.prev), baac.prev.prev.prev,
+                               ifelse(!is.na(baac.prev.prev), baac.prev.prev,
+                               ifelse(!is.na(baac.prev), baac.prev, baac))),
+         gsstk.initial = ifelse(!is.na(gsstk.prev.prev), gsstk.prev.prev.prev,
+                               ifelse(!is.na(gsstk.prev.prev), gsstk.prev.prev,
+                               ifelse(!is.na(gsstk.prev), gsstk.prev, gsstk))), 
+         desire.prev.initial = ifelse(!is.na(desire.prev.prev.prev), desire.prev.prev.prev,
+                               ifelse(!is.na(desire.prev.prev), desire.prev.prev,
+                                      desire.prev)), 
+         qmd.initial = ifelse(!is.na(qmd.prev.prev), qmd.prev.prev.prev,
+                               ifelse(!is.na(qmd.prev.prev), qmd.prev.prev,
+                               ifelse(!is.na(qmd.prev), qmd.prev, qmd))), 
+         lorey_ht.initial = ifelse(!is.na(lorey_ht.prev.prev), lorey_ht.prev.prev.prev,
+                               ifelse(!is.na(lorey_ht.prev.prev), lorey_ht.prev.prev,
+                               ifelse(!is.na(lorey_ht.prev), lorey_ht.prev, lorey_ht))), 
+         stdage.initial = ifelse(!is.na(stdage.prev.prev), stdage.prev.prev.prev,
+                               ifelse(!is.na(stdage.prev.prev), stdage.prev.prev,
+                               ifelse(!is.na(stdage.prev), stdage.prev, stdage))))
+
+covanalysis$baac.remv = ifelse(covanalysis$baac.remv == covanalysis$baac.perc.cut,
+                            covanalysis$baac.perc.cut, 
+                        ifelse(covanalysis$baac.remv == covanalysis$baac.perc.cut.prev,
+                               covanalysis$baac.perc.cut.prev, 
+                        ifelse(covanalysis$baac.remv == covanalysis$baac.perc.cut.prev.prev,
+                               covanalysis$baac.perc.cut.prev.prev, 0)))
+
+write.csv(covanalysis, paste0("output/covanalysis_prep", region, ".csv"), row.names=FALSE)
+  
+}
+write.csv(datclean, paste0("output/harvestprep_", region, "_trtbaac.csv"), row.names=FALSE)
+
+
+```
+
+
+#### This table subsets to sites with *initial* gross board foot volume being greater than or equal to 2000. 
+
+## Map of FIA plots
+```{r echo=FALSE, error=FALSE, message=FALSE, warning=FALSE, include=FALSE}
+
+### Just check with Catherine's list of counties
+#Shapefiles
+library(usmap)
+library(USAboundaries)
+library(sf)
+library(rgeos)
+library(terra)
+
+usda <- st_read("../input/S_USA.EcomapSections.dbf")
+
+```
+
+
+```{r echo=FALSE, error=FALSE, message=FALSE, warning=FALSE, fig.align='center', fig.height=8}
+#subset area of interest
+usda.ne <- usda[(usda$MAP_UNIT_S %in% unique(substr(datclean$ecosubcd, 1, nchar(datclean$ecosubcd)-1))),]
+#State boundaries
+ne.states <- us_states() %>%
+  filter(state_abbr %in% c(states))
+#Subset polygon to clip to states extent
+ne.states <- st_transform(ne.states, st_crs(usda.ne))
+usda.ne <- st_intersection(usda.ne, ne.states)
+
+harvesteddf <- datclean %>%
+  mutate(harvorno = ifelse(numharvs > 0, "Yes", "No"))
+
+coordsdf <- subset(harvesteddf, select=c(lat, lon, forestname, harvorno))
+coordsdf$latlon <- paste(coordsdf$lat, coordsdf$lon)
+
+onemeasdf <- coordsdf[!duplicated(coordsdf$latlon),]
+
+coords <- subset(datclean, select=c(lat, lon))
+onemeas <- coords[!duplicated(coords),]
+
+coordinates(onemeas) <- ~lon+lat
+proj4string(onemeas) <- crs(usda.ne)
+
+nesub <- st_as_sf(onemeas)
+nesub <- st_transform(nesub, crs(usda.ne))
+
+nesub <- cbind(onemeasdf, nesub)
+
+usda.ne$ecosubcd <- substr(usda.ne$MAP_UNIT_S, 1, nchar(usda.ne$MAP_UNIT_S)-1)
+
+harvmap <- ggplot() + 
+  geom_sf(data=usda.ne, aes(fill=ecosubcd), col=NA) +
+  geom_sf(data=nesub, aes(geometry=geometry, col=harvorno), alpha=0.6) +
+  theme_bw() +
+  scale_fill_brewer(palette="Greys") +
+  scale_color_brewer(palette="Set2") +
+  labs(x="", y="", fill="Ecosection", col="Harvest") +
+  ggtitle("Harvested")
+
+formap <- ggplot() + 
+  geom_sf(data=usda.ne, aes(fill=ecosubcd), col=NA) +
+  geom_sf(data=nesub, aes(geometry=geometry, col=forestname), alpha=0.6) +
+  theme_bw() +
+  scale_fill_brewer(palette="Greys") +
+  scale_color_viridis(discrete=TRUE) +
+  labs(x="", y="", fill="Ecosection", col="Forest Type") +
+  ggtitle("Forest type")
+
+
+grid.arrange(formap, harvmap, ncol=1)
+
+
+png(paste0("figures/fiadatamaps_", region, ".png"), 
+    width=5,
+    height=10, units="in", res = 350 )
+grid.arrange(formap, harvmap, ncol=1)
+invisible(dev.off())
+ 
+```
+
+## Change in BAA by forest type
+```{r, rd, echo=FALSE, message=FALSE, warning=FALSE, fig.align='center', fig.height=7 , fig.width=9}
+
+harv <- datclean %>%
+  filter(harvest==1)
+
+harv <- harv %>%
+  mutate(baac.initial = ifelse(!is.na(baac.prev.prev), baac.prev.prev.prev,
+                               ifelse(!is.na(baac.prev.prev), baac.prev.prev,
+                               ifelse(!is.na(baac.prev), baac.prev, baac))))
+
+harv$baac.remv = ifelse(harv$baac.remv == harv$baac.perc.cut, harv$baac.perc.cut, 
+                        ifelse(harv$baac.remv == harv$baac.perc.cut.prev, harv$baac.perc.cut.prev, 
+                        ifelse(harv$baac.remv == harv$baac.perc.cut.prev.prev, harv$baac.perc.cut.prev.prev, 0)))
+
+
+barmMean <- harv %>%
+  filter(baac.remv > 0) %>%
+    group_by(forestname) %>%
+    summarise(mean = mean(baac.remv*100))
+barmMean$y <- 0.06
+
+
+ densplot <- ggplot(harv[harv$baac.remv > 0,], aes(x = baac.remv*100, fill = forestname)) +
+  geom_density(alpha = 0.6) +
+  scale_fill_viridis_d(option = "plasma", end = 0.8) +
+   geom_vline(data = barmMean, aes(xintercept=mean, col=forestname), linetype="dashed", show.legend = FALSE) +
+  scale_color_viridis_d(option = "plasma", end = 0.8) +
+  labs(x = "Harvest Intensity", y = "Proportion of plots", fill = "Forest Type", color=NULL) +
+  theme_bw() +
+   geom_text(data = barmMean, aes(mean, y, label = paste("Avg is", round(mean, digits=2)), col=forestname), 
+             hjust = 1.1, show.legend = FALSE) + facet_wrap(~forestname) +
+  ggtitle("BAAC % removed by forest group - harvested plots only")
+ 
+ 
+ if(use.harvest.srs==TRUE){
+  datclean$harvname <- ifelse(datclean$harvest_type1_srs == 11, "Clearcut", 
+                            ifelse(datclean$harvest_type1_srs == 12, "Partial harvest",
+                            ifelse(datclean$harvest_type1_srs == 13, "Shelterwood",
+                            ifelse(datclean$harvest_type1_srs == 14, "Commercial thinning",
+                            ifelse(datclean$harvest_type1_srs == 15, 
+                                   "Timber stand improvement", "Salvage cutting")))))
+
+harvtype <- ggplot(datclean %>% filter(!is.na(harvname)) %>%
+                     group_by(harvname) %>% summarize(count = n()) %>%
+                     left_join(datclean), 
+                           aes(x=reorder(harvname, desc(count)), fill=harvname)) + 
+  geom_bar(position="dodge") +
+  theme_bw() + theme(legend.position = "none") + facet_wrap(~forestname) + 
+  xlab("") + ylab("# of FIA plots") + scale_fill_viridis(discrete=TRUE) +
+  scale_x_discrete(guide = guide_axis(angle=45)) + labs(fill="Harvest type")
+} else{
+ 
+ 
+ harv$clearcut <- ifelse(harv$baac.remv >= 0.7 & harv$harvest==1, "clearcut", "thinning")
+ 
+ clears1 <- table(harv$clearcut[harv$forestname == forestname1])[1]
+ thins1 <- table(harv$clearcut[harv$forestname == forestname1])[2]
+ 
+ clears2 <- table(harv$clearcut[harv$forestname == forestname2])[1]
+ thins2 <- table(harv$clearcut[harv$forestname == forestname2])[2]
+
+ 
+ harvtype <- ggplot(harv, aes(baac.initial, y= baac.remv*100, fill=clearcut, col=clearcut)) +
+   geom_smooth(method="lm") + 
+   scale_fill_viridis_d(option = "turbo", end = 0.8) + 
+   scale_color_viridis_d(option = "turbo", end = 0.8) + 
+   facet_wrap(~forestname) + theme_classic() +
+   labs(x="Initial BAAC", y="% BAA removed", col="Harvest type", fill="Harvest type")
+ 
+}
+
+grid.arrange(densplot, harvtype, ncol=1)
+
+png(paste0("figures/harvesttypes_", region, ".png"), 
+    width=5,
+    height=10, units="in", res = 350 )
+grid.arrange(densplot, harvtype, ncol=1)
+invisible(dev.off())
+
+
+```
+
+
+#### $\color{red}{\text{For `r forestname1`, the number of clearcut plots (i.e.,  removed at least 70% BAAC) is **`r clears1`** and the number of thinned plots is **`r thins1`**.}}$
+#### $\color{red}{\text{For `r forestname2`, the number of clearcut plots (i.e.,  removed at least 70% BAAC) is **`r clears2`** and the number of thinned plots is **`r thins2`**.}}$
+
+
+```{r, include=FALSE}
+
+## Species by diameter classes
+#trees = read.csv("output/treelist_ne.csv")
+datall_harv = datclean %>%
+  filter(harvest==1)
+
+      siteharv <- datall_harv %>%
+        mutate(harvestbins = cut(baac.remv*100, breaks = c(10, 30, 60, 100)),
+               harvestbins = gsub(pattern = "\\(|\\[|\\)|\\]", replacement = "", harvestbins)) %>% 
+        separate(col = harvestbins, into = c("lwr", "upr")) %>%
+        mutate(harvestbins = paste(ifelse(lwr==0, 0, as.numeric(lwr)+1), upr, sep = "-")) 
+      siteharv$lwr <- as.numeric(siteharv$lwr)
+      siteharv$harvestbins <- reorder(siteharv$harvestbins, siteharv$lwr)
+      siteharv$lwr <- siteharv$upr <- NULL
+      siteharv <- siteharv[!siteharv$harvestbins == "NA-NA",]
+      
+      siteharv <- siteharv %>%
+        select(plt_cn, harvest, harvestbins)
+      
+      
+      speciestable <- trees %>%
+        mutate(dia_bin = cut(dia.prev, breaks = c(seq(0, 500, by = 2))),
+               dia_bin = gsub(pattern = "\\(|\\[|\\)|\\]", replacement = "", dia_bin)) %>% 
+        separate(col = dia_bin, into = c("lwr", "upr")) %>%
+        mutate(dia_bin = paste(ifelse(lwr==0, 0, as.numeric(lwr)+1), upr, sep = "-")) 
+      speciestable$lwr <- as.numeric(speciestable$lwr)
+      speciestable$dia_bin <- reorder(speciestable$dia_bin, speciestable$lwr)
+      speciestable$lwr <- speciestable$upr <- NULL
+      
+      
+      speciestable <- left_join(speciestable, forestgroup)
+      
+      speciestable <- speciestable %>%
+        filter(forestname %in% c(forestname1, forestname2)) #"Elm / ash / cottonwood group"
+      
+      speciestable <- subset(speciestable, select=c(dia_bin, dia, dia.prev, tpa.custom.prev, tpa.custom,
+                                                    baac, baac.prev,
+                                                    statuscd, statuscd.prev, plt_cn, forestname))
+      speciestable <- speciestable[!duplicated(speciestable),]
+      
+      treelist <- datclean %>%
+        select(plt_cn, harvest) %>%
+        right_join(speciestable)
+      write.csv(treelist, file=paste0("output/speciestable_", region, ".csv"), row.names=FALSE)
+      
+      speciestable <- left_join(speciestable, siteharv)
+      speciestable <- speciestable[!(speciestable$dia_bin=="NA-NA"),]
+      
+      
+```
+
+      
+## Harvest behaviors by change in QMD
+```{r warning=FALSE, message=FALSE, echo=FALSE, fig.align='center', fig.width=9}
+ ## QMD change by removal amount - as per Catherine Henry's methods
+
+      datharv <- speciestable %>%
+        mutate( harv = harvest == 1 & dia.prev >= 5,
+                prev = statuscd.prev == 1 & dia.prev >= 5) %>%
+        group_by(plt_cn) %>%
+        summarize(across(c(harvestbins, forestname), function(x) first(na.omit(x))), 
+                  qmdharv = mean(sqrt(sum(baac[harv], na.rm=TRUE)/(0.005454 * sum(tpa.custom[harv], na.rm=TRUE))), na.rm=TRUE),
+            qmd.prev = mean(sqrt(sum(baac.prev[prev], na.rm=TRUE)/(0.005454 * sum(tpa.custom.prev[prev], na.rm=TRUE))), na.rm=TRUE))
+      datharv <- datharv[!is.na(datharv$qmdharv),]
+      datharv <- datharv[!datharv$qmdharv==0,]
+      
+      #write.csv(datharv, file="output/harvesteddata.csv", row.names=FALSE)
+
+      
+      qmdscat <- ggplot(datharv %>% filter(!harvestbins %in% c("NA-NA", "0-10")), 
+                        aes(y=qmdharv, x=qmd.prev, col=harvestbins)) + geom_point() +
+        theme_bw() + scale_color_viridis(discrete = TRUE, direction=-1) + geom_abline(col="red") + 
+        facet_wrap(~forestname) + coord_cartesian(xlim=c(0,30), ylim=c(0,30)) + 
+        xlab("Previous QMD") + ylab("Harvested QMD") + labs(color="Harvest intensity (%)")
+      
+      stats_ci <- speciestable %>% 
+                  mutate( harv = harvest == 1 & dia.prev >= 5 & statuscd.prev == 1,
+                          prev = statuscd.prev == 1 & dia.prev >= 5) %>%
+        group_by(plt_cn) %>%
+        summarise(across(c(forestname, harvest), first),
+            qmdharv = sqrt(sum(baac[harv], na.rm=TRUE)/(0.005454 * sum(tpa.custom[harv], na.rm=TRUE))),
+            qmd.prev = sqrt(sum(baac.prev[prev], na.rm=TRUE)/(0.005454 * sum(tpa.custom.prev[prev], na.rm=TRUE)))) %>%
+  ungroup() %>%
+  group_by(forestname) %>%
+  summarise(num_plot = sum(harvest == 1, na.rm=TRUE),
+            mean_d_D = mean(qmdharv/qmd.prev, na.rm = TRUE), 
+            sd_d_D = sd(qmdharv/qmd.prev, na.rm = TRUE),
+            low_ci = mean_d_D - (sd_d_D * 1.96)/sqrt(num_plot),
+            up_ci = mean_d_D + (sd_d_D * 1.96)/sqrt(num_plot))
+      
+      #write.csv(stats_ci, file="output/qmdremoved.csv", row.names = FALSE)
+      
+      p.vio <- datharv %>%
+                  ggplot() + 
+                  geom_violin(mapping = aes(x = forestname, y = qmdharv/qmd.prev, fill = forestname)) +
+                  geom_point(stats_ci, mapping = aes(x = forestname, y = mean_d_D)) +
+                  scale_fill_viridis(discrete=TRUE) +
+                  geom_errorbar(stats_ci, mapping = aes(x = forestname, 
+                                                        ymin = low_ci, ymax = up_ci), width = 0.2) +
+                  labs(x = "", y="Harvested QMD/Previous QMD (in)", fill="") +
+                  geom_hline(yintercept = 1, col = "red", linetype = 2) +
+                  theme(legend.position = "none") + theme_bw() #+ facet_wrap(~ecosub)
+     
+      
+      ## Diameter size class for removed stems vs prior to harvest - as per Catherine Henry's methods
+      diaharv <- speciestable %>%
+        filter(!is.na(statuscd.prev), !is.na(harvestbins), !is.na(tpa.custom.prev)) %>%
+        dplyr::mutate(harvested = statuscd.prev == 1 & statuscd == 3,
+                      previously_standing = statuscd.prev == 1) %>%
+        group_by(plt_cn, dia_bin) %>%
+        summarize(across(c(harvestbins, forestname), function(x) first(na.omit(x))),
+                  avgTPA = sum(tpa.custom.prev[previously_standing], na.rm=TRUE),
+                  avgREMV_TPA = sum(tpa.custom.prev[harvested], na.rm=TRUE),
+                  percremv = 100*(avgREMV_TPA/avgTPA)) %>%
+        group_by(dia_bin, harvestbins, forestname) %>%
+        summarize(avgTPA = mean(avgTPA),
+                  avgREMV_TPA = mean(avgREMV_TPA),
+                  avgpercremv = mean(percremv, na.rm=TRUE))
+      
+      diaharv$dia <- as.numeric(gsub("-.*", "", diaharv$dia_bin))
+      
+      diaharv <- diaharv[!(diaharv$harvestbins %in% c("NA-NA", "0-10")),]
+      diaharvplot <- ggplot(diaharv[diaharv$dia >= 5, ]) + 
+        geom_col(aes(x=dia, y = avgTPA)) + 
+        geom_col(aes(x=dia, y = avgREMV_TPA), 
+                 fill = "red") + 
+        theme_bw() + 
+        labs(y = "Trees per acre", 
+             x="Diameter size\nclass (inches)") + 
+        facet_grid(forestname~harvestbins)
+      
+      
+      diaharvpercplot <- ggplot(diaharv[diaharv$dia>=5,]) + 
+        geom_col(aes(x=dia, y=avgpercremv), #, fill=harvestbins
+                 position = "dodge") +
+        #scale_fill_viridis(discrete=TRUE) +
+        theme_bw() + 
+        labs(y = "Percent removal (TPA)", 
+             x="Diameter size\nclass (inches)") + #,fill="Harvest intensity (%)"
+      facet_wrap(~forestname)
+      
+
+qmdscat
+
+ p.vio
+
+
+ png(paste0("figures/qmdcompare_", region, ".png"), 
+    width=4,
+    height=5, units="in", res = 350 )
+qmdscat
+invisible(dev.off())
+
+png(paste0("figures/violinplot_", region, ".png"), 
+    width=4,
+    height=5, units="in", res = 350 )
+p.vio
+invisible(dev.off())
+
+
+```
+
+## Percent TPA removed
+```{r, warning=FALSE, message=FALSE, echo=FALSE, fig.align='center'}
+
+
+diaharvplot
+
+
+
+```
+
+#### The red portions of the histograms represent trees that were removed, whereas the grey portions are the trees left to grow. If the red to grey ratio is consistent across the diameter classes, that suggests a thin throughout. If the red to grey ratio is higher in the higher diameter classes, that suggests a thin from above and if the red to grey ratio is higher in the lower diameter classes, that suggests a thin from below. 
+
+
+```{r, ba, echo=FALSE, message=FALSE, fig.align='center', warning=FALSE, include=FALSE}
+
+## Histograms of Previous BAA across forest types
+
+baMean <- datclean %>% 
+  filter(!is.na(invyr.prev)) %>% #, forestsubtype %in% c("Longleaf pine", "Slash pine")
+    group_by(forestname) %>%
+    summarise(mean = mean(baac.prevharv, na.rm=TRUE))
+all <- ggplot(datclean %>% filter(!is.na(invyr.prev)), #,forestsubtype %in% c("Longleaf pine", "Slash pine")
+              aes(x=baac.prevharv)) + 
+  geom_histogram(alpha=0.6, aes(fill=forestname)) + 
+  theme_bw() + theme(legend.position = "none") +
+  labs(x="Basal area/acre", y="# FIA plots") +
+  scale_fill_viridis(discrete=TRUE) + 
+  geom_vline(data = baMean, aes(xintercept=mean), linetype="dashed") + 
+  ggtitle("Previous basal area/acre - all plots") + facet_wrap(~forestname)
+
+ba1 = round(baMean[1,2], digits=2)
+ba2 = round(baMean[2,2], digits=2)
+ba3 = round(baMean[3,2], digits=2)
+
+
+baMeanharv <- harv %>%
+    filter(!is.na(invyr.prev)) %>% #, forestsubtype %in% c("Longleaf pine", "Slash pine")
+    group_by(forestname) %>%
+    summarise(mean = mean(baac.prevharv, na.rm=TRUE))
+harvested <- ggplot(harv, aes(x=baac.prevharv)) + # %>% filter(forestsubtype %in% c("Longleaf pine", "Slash pine"))
+  geom_histogram(alpha=0.6, aes(fill=forestname)) + 
+  theme_bw() + theme(legend.position = "none") +
+  labs(x="Basal area/acre", y="# FIA plots") +
+  scale_fill_viridis(discrete=TRUE) + 
+  geom_vline(data = baMeanharv, aes(xintercept=mean), linetype="dashed") + 
+  coord_cartesian(xlim=c(0, 250)) +
+  #geom_vline(xintercept=62.5, col="red", linetype="dotted") +
+  ggtitle("Previous basal area/acre - harvested plots") + facet_wrap(~forestname)
+
+ba_harv1 = round(baMeanharv[1,2], digits=2)
+ba_harv2 = round(baMeanharv[2,2], digits=2)
+
+grid.arrange(all, harvested, ncol=1)
+
+png(paste0("figures/baacbreakdown_", region, ".png"), 
+    width=5,
+    height=10, units="in", res = 350 )
+grid.arrange(all, harvested, ncol=1)
+invisible(dev.off())
+
+
+#### $\color{red}{\text{For `r forestname1`, the mean BAAC for all plots is **`r ba1` sqft/acre** and the mean for harvested plots is **`r ba_harv1` sqft/acre**.}}$
+
+#### $\color{red}{\text{For `r forestname2`, the mean BAAC for all plots is **`r ba2` sqft/acre** and the mean for harvested plots is **`r ba_harv2` sqft/acre**.}}$
+
+```
+
+
+## Prefeasibility Estimate of Carbon Gains
+```{r, gains, echo=FALSE, message=FALSE, fig.align='center', warning=FALSE}
+
+# Select variables of interest
+# calculate total stock change and annualized change since the previous two measurements (~15 years)
+# Note: I use the oldest available measurement to calculate annualized change
+site_redux <- datclean %>%
+  ## Cat added 10 Sept 2024 - remove sites without previous measurements
+  filter(!is.na(total_mtco2eac.prev)) %>% 
+  dplyr::select(plt_cn, 
+                invyr,
+                invyr.prev,
+                invyr.prev.prev,
+                baac,
+                baac.prev,
+                baac.prev.prev,
+                countycd, 
+                statecd, 
+                unitcd, 
+                ecosub,
+                ecosubcd,
+                lat,
+                lon,
+                fortypcd,
+                forestname, 
+                harv1, 
+                harv2, 
+                numharvs,
+                total_mtco2eac,
+                total_mtco2eac.prev,
+                total_mtco2eac.prev.prev,
+                baac.remv,
+  ) %>%
+  ### Cat adjusted to only assess most recent measurement
+  mutate(x_time = invyr - invyr.prev, #if_else(is.na(invyr.prev.prev), invyr.prev, invyr.prev.prev),
+         totCO2e_change = (total_mtco2eac - total_mtco2eac.prev), #if_else(is.na(total_mtco2eac.prev.prev), total_mtco2eac.prev, total_mtco2eac.prev.prev)),
+         baac_change = baac - baac.prev, #if_else(is.na(baac.prev.prev), baac.prev, baac.prev.prev),
+         ann_CO2e_change = totCO2e_change / x_time,
+         ann_baac_change = baac_change / x_time,
+         baac.remv = ifelse(is.na(baac.remv), 0, baac.remv),
+         ann_baac_remv = baac.remv / x_time,
+         harvested = ifelse(numharvs > 0, 1 ,0))
+
+site_redux_harvest <- site_redux %>%
+  group_by(statecd, unitcd) %>%
+  mutate(wt.harv.red_25 = if_else(numharvs>0, 
+                                  (1/length(plt_cn)*(1-.25)), 
+                                  (1-(1/length(plt_cn))*(1-.25)*sum(harvested))*(1/(length(plt_cn)-sum(harvested)))),
+         wt.harv.red_50 = if_else(numharvs>0, 
+                                  (1/length(plt_cn)*(1-.50)), 
+                                  (1-(1/length(plt_cn))*(1-.50)*sum(harvested))*(1/(length(plt_cn)-sum(harvested)))),
+         wt.harv.red_75 = if_else(numharvs>0, 
+                                  (1/length(plt_cn)*(1-.75)), 
+                                  (1-(1/length(plt_cn))*(1-.75)*sum(harvested))*(1/(length(plt_cn)-sum(harvested)))),
+         wt.harv.red_100 = if_else(numharvs>0, 
+                                   (1/length(plt_cn)*(1-1)), 
+                                   (1-(1/length(plt_cn))*(1-1)*sum(harvested))*(1/(length(plt_cn)-sum(harvested)))),
+  )
+
+# estimate gross emissions associated with harvest (NEED TO DOWNLOAD FIA TREE DATA TO DO THIS)
+REF_SPECIES <- read.csv("../input/REF_SPECIES.csv")
+tree_jenkins <- treeplot %>%
+  dplyr::select(plt_cn,statecd,unitcd,dia,dia.prev,spcd,statuscd,prev_status_cd,decaycd,tpa_unadj) %>%
+  filter(statuscd==3)
+
+# Append Jenkins coefficients to each treelist entry
+tree_jenkins$JENKINS_TOTAL_B1 = REF_SPECIES[match(tree_jenkins$spcd, REF_SPECIES$SPCD), "JENKINS_TOTAL_B1"]
+tree_jenkins$JENKINS_TOTAL_B2 = REF_SPECIES[match(tree_jenkins$spcd, REF_SPECIES$SPCD), "JENKINS_TOTAL_B2"]
+
+# Append Jenkins Root to Shoot Ratio coefficients
+tree_jenkins$JENKINS_ROOT_RATIO_B1 = REF_SPECIES[match(tree_jenkins$spcd, REF_SPECIES$SPCD), "JENKINS_ROOT_RATIO_B1"]
+tree_jenkins$JENKINS_ROOT_RATIO_B2 = REF_SPECIES[match(tree_jenkins$spcd, REF_SPECIES$SPCD), "JENKINS_ROOT_RATIO_B2"]
+
+
+# Calculate Aboveground Biomass for all live trees - before harvest
+tree_jenkins$LAG = ifelse(tree_jenkins$prev_status_cd == 1, 
+                          exp(tree_jenkins$JENKINS_TOTAL_B1 + (tree_jenkins$JENKINS_TOTAL_B2*log(tree_jenkins$dia.prev * 2.54))) *  # Jenkins eqn
+                            (1/1000) * 0.5 * (44/12) * tree_jenkins$tpa_unadj,       # Sapling, kg to Mg, C ratio, C to CO2e, ExpFac
+                          0)
+# Calculate Belowground Biomass for all live trees - before harvest
+tree_jenkins$LBG = ifelse(tree_jenkins$prev_status_cd == 1, 
+                          tree_jenkins$LAG * exp(tree_jenkins$JENKINS_ROOT_RATIO_B1 + (tree_jenkins$JENKINS_ROOT_RATIO_B2 / (tree_jenkins$dia.prev * 2.54))),
+                          0)
+
+# Append Specific Gravity from REF_SPECIES to treelist
+tree_jenkins$SG = REF_SPECIES[match(tree_jenkins$spcd, REF_SPECIES$SPCD), "WOOD_SPGR_GREENVOL_DRYWT"]
+tree_jenkins$StemWood_Ratio_b1 <- REF_SPECIES[match(tree_jenkins$spcd, REF_SPECIES$SPCD), "JENKINS_STEM_WOOD_RATIO_B1"]
+tree_jenkins$StemWood_Ratio_b2 <- REF_SPECIES[match(tree_jenkins$spcd, REF_SPECIES$SPCD), "JENKINS_STEM_WOOD_RATIO_B2"]
+tree_jenkins$PREVStemWood_Ratio <- exp(tree_jenkins$StemWood_Ratio_b1 + (tree_jenkins$StemWood_Ratio_b2 / (2.54 * tree_jenkins$dia.prev)))
+
+# For any dead trees that lack DECAYCD value, conservatively assume decay class 5
+tree_jenkins$decaycd = ifelse(is.na(tree_jenkins$decaycd) & tree_jenkins$prev_status_cd == 2, 5, tree_jenkins$decaycd)
+
+# Add current measurement DRF using Harmon et al decay class factors
+tree_jenkins$DRF <- ifelse(tree_jenkins$decaycd==1, 0.97,
+                           ifelse(tree_jenkins$decaycd==2, 0.97,
+                                  ifelse(tree_jenkins$decaycd==3, 0.86,
+                                         ifelse(tree_jenkins$decaycd==4, 0.53,
+                                                ifelse(tree_jenkins$decaycd==5, 0.53, NA)))))
+
+tree_jenkins$DW = ifelse(tree_jenkins$prev_status_cd == 2, 
+                         exp(tree_jenkins$JENKINS_TOTAL_B1 + (tree_jenkins$JENKINS_TOTAL_B2*log(tree_jenkins$dia.prev * 2.54))) *  # Jenkins eqn
+                           (1/1000) * 0.5 * (44/12) * tree_jenkins$tpa_unadj * tree_jenkins$DRF * tree_jenkins$PREVStemWood_Ratio, 
+                         0)
+
+# Calculate plot level emissions associated with harvested trees
+plot_harv_emmit <- tree_jenkins %>%
+  group_by(plt_cn) %>%
+  summarise(live_AG_emitted = sum(LAG, na.rm=T),
+            live_BG_emitted = sum(LBG, na.rm=T),
+            deadwood_emitted = sum(DW, na.rm=T))
+
+# Calculate unit level emissions associated with harvested trees
+summ_harv_emit <- plot_harv_emmit %>%
+  left_join(datclean %>% dplyr::select(plt_cn,statecd,unitcd,countycd,forestname,invyr,invyr.prev), by="plt_cn") %>% # add statecd and unitcd to plots
+  group_by(statecd, unitcd) %>%
+  mutate(x_time = invyr - invyr.prev,
+         total_harv_emit_tCO2e = live_AG_emitted + live_BG_emitted +deadwood_emitted,
+         ann_total_harv_emit_tCO2e = total_harv_emit_tCO2e/x_time) %>%
+  reframe(mean_ann_tCO2e_harv_emit = mean(ann_total_harv_emit_tCO2e,na.rm=T))
+
+# identify dominant forest type by the forest type with the highest total basal area in each unit
+dom_fortyp <- site_redux_harvest %>%
+  group_by(statecd, unitcd, fortypcd) %>%
+  summarise(baac = sum(baac)) %>%
+  filter(max(baac) == baac)
+
+################################################################################
+################################################################################
+
+# STEP 3 - Identify viable emission reduction outcomes by county, unit, and state
+carbon_out <- site_redux_harvest %>%
+  ungroup() %>%
+  group_by(statecd, unitcd) %>%
+  summarise(harvest_events = sum(numharvs, na.rm=T), # total number of harvests occurring in each unit over 15 years (could be more than 1 per plot)
+            plts_harvested = sum(harvested, na.rm=T), # total number of plots that were harvested in each unit over 15 years (counts plot once if ever harvested)
+            n_plots = length(plt_cn), # number of plots measured in each unit
+            mean_ann_CO2e_change = mean(ann_CO2e_change, na.rm=T), # mean annualized tCO2e change over 15 years or 10 years depending on available measurements
+            st.dev_CO2e_change = sd(ann_CO2e_change,na.rm = T), # standard dev of annualized tCO2e change
+            min_CO2e_change = min(ann_CO2e_change, na.rm=T), # min ann stock change CO2e
+            max_CO2e_change = max(ann_CO2e_change, na.rm=T), # max ann stock change CO2e
+            CO2e.harv.red_25 = sum(ann_CO2e_change*wt.harv.red_25,na.rm=T), # mean annualized tCO2e change with 25% reduction in harvest
+            CO2e.harv.red_50 = sum(ann_CO2e_change*wt.harv.red_50,na.rm=T), # mean annualized tCO2e change with 50% reduction in harvest
+            CO2e.harv.red_75 = sum(ann_CO2e_change*wt.harv.red_75,na.rm=T), # mean annualized tCO2e change with 75% reduction in harvest
+            CO2e.harv.red_100 = sum(ann_CO2e_change*wt.harv.red_100,na.rm=T), # mean annualized tCO2e change with 100% reduction in harvest
+            net_25.red = CO2e.harv.red_25 - mean_ann_CO2e_change, # net emission reduction with 25% reduction
+            net_50.red = CO2e.harv.red_50 - mean_ann_CO2e_change, # net emission reduction with 50% reduction
+            net_75.red = CO2e.harv.red_75 - mean_ann_CO2e_change, # net emission reduction with 75% reduction
+            net_100.red = CO2e.harv.red_100 - mean_ann_CO2e_change, # net emission reduction with 100% reduction
+            mean_ann_baac_change = mean(ann_baac_change, na.rm=T)) %>% # mean annualized basal area change over 15 years or 10 years depending on available measurements
+  mutate(perc_plts_harvested = round(plts_harvested/n_plots, digits=4)) %>% # percent of plots by unit receiving a harvest(s) over 15 years
+  left_join(dom_fortyp %>% dplyr::select(statecd,unitcd,dom_fortyp=fortypcd), by = c("statecd","unitcd")) %>% # add dominant forest type
+  left_join(summ_harv_emit, by=c("statecd","unitcd")) 
+
+# add net emission reductions with leakage
+# if the dominant forest type is conifer (fortypcd <401) it receives a leakage deduction of 16%
+# otherwise it receives leakage of 44%
+carbon_out <- carbon_out %>%
+  mutate(AnnualEmissionReductions25 = if_else(dom_fortyp<401, net_25.red * (1-.16), net_25.red * (1-.44)),
+         AnnualEmissionReductions50 = if_else(dom_fortyp<401, net_50.red * (1-.16), net_50.red * (1-.44)),
+         AnnualEmissionReductions75 = if_else(dom_fortyp<401, net_75.red * (1-.16), net_75.red * (1-.44)),
+         AnnualEmissionReductions = if_else(dom_fortyp<401, net_100.red * (1-.16), net_100.red * (1-.44)))
+
+ifm <- carbon_out %>%
+  pivot_longer(cols = c(AnnualEmissionReductions25:AnnualEmissionReductions), values_to = "AnnualEmissionReductions",
+                       names_to = "Scenario") %>%
+          mutate(Scenario = ifelse(Scenario=="AnnualEmissionReductions",
+                                                   "100% emission reductions",
+                                                   ifelse(Scenario=="AnnualEmissionReductions75",
+                                                          "75% emission reductions",
+                                                   ifelse(Scenario=="AnnualEmissionReductions50",
+                                                          "50% emission reductions","25% emission reductions")))) %>%
+  left_join(forestgroup %>% rename(dom_fortyp = fortypcd)) %>%
+  group_by(forestname, Scenario) %>%
+  summarize(AnnualEmissionReductions = mean(AnnualEmissionReductions, na.rm=TRUE))
+  
+  gains <- ggplot(ifm, 
+                   aes(x=reorder(Scenario, AnnualEmissionReductions, decreasing=TRUE), 
+                       y=AnnualEmissionReductions)) + 
+    geom_bar(stat="identity", aes(color = Scenario, fill=Scenario)) +
+    scale_color_d3("category20b") +
+    scale_fill_d3("category20b") +
+    scale_x_discrete(guide = guide_axis(angle=45)) +
+    theme_bw() + xlab("") + 
+    theme(legend.position = "none") +
+    geom_text(aes(label = round(AnnualEmissionReductions, digits=2)), y=0.1, col="white") +
+    labs(y= "Additionality (MT CO2e/ac/yr)") + facet_wrap(~forestname)
+  
+  
+  grid.arrange(gains)
+
+  
+  png(paste0("figures/cgains_", region, ".png"), 
+    width=5,
+    height=10, units="in", res = 350 )
+gains
+invisible(dev.off())
+
+
+```
+
