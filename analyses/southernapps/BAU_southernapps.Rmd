@@ -1,5 +1,5 @@
 ---
-title: "BAU Template"
+title: "BAU Southern Apps"
 author: "" 
 date: "`r Sys.Date()`"
 output: 
@@ -266,7 +266,7 @@ trees <- left_join(tree, cond, by=c("plt_cn", "invyr", "statecd", "countycd", "u
 allplot = allplot %>%
   filter(invyr > 1997) %>%
   dplyr::select("cn", "ecosubcd", "statecd", "countycd", "unitcd", "lat", "lon", "elev", 
-                "measmon", "measday", "measyear", "remper") %>% 
+                "measmon", "measday", "measyear", "remper", "kindcd", "p2panel", "qa_status", "designcd") %>% 
   mutate(ecosub = substr(ecosubcd, 1, nchar(ecosubcd)-2),
          countyid = paste(statecd, countycd),
          measdate = as.Date(paste(measmon, measday, measyear, sep="-"), format="%m-%d-%Y")) %>%
@@ -297,7 +297,7 @@ dat_grouped <- treeplot %>%
                 stand = statuscd.prev == 1 & statuscd == 1 & dia.prev >= 5) %>%
   group_by(plt_cn) %>%
   summarize(across(c(ecosub, ecosubcd, statecd, countycd, plot, unitcd, lat, lon, fortypcd, owngrpcd, stdorgcd, invyr, remper, measdate, prev.plt.cn, prev.prev.plt.cn, prev.prev.prev.plt.cn, dstrbcd1, 
-                     dstrbcd2, dstrbcd3, stdage, siteclcd, spgrpcd,
+                     dstrbcd2, dstrbcd3, stdage, siteclcd, spgrpcd, kindcd, designcd, qa_status,
                      gsstk, elev,  slope, aspect, trtcd1, harvest_type1_srs, physclcd), function(x) first(na.omit(x))),
             ## Calculate % BA removed
             baac.perc.cut = (sum(baac.prev[harv], na.rm=TRUE))/sum(baac.prev[prev], na.rm=TRUE),
@@ -320,7 +320,7 @@ dat_grouped <- treeplot %>%
             ## Stand-level Lorey's Height
             lorey_ht = sum(lorey_ht_part, na.rm = TRUE) / sum(ba_part_lorey, na.rm=TRUE),
             ## Stand-level QMD of merchantable trees
-            qmd = sqrt(baac.merch/(0.005454 * tpasite))) %>%
+            qmd = sqrt(baac/(0.005454 * tpasite))) %>%
   distinct(plt_cn, .keep_all = TRUE) 
 
 ## Species list is downloaded from here: https://www.fia.fs.usda.gov/library/field-guides-methods-proc/#TreeSpecList
@@ -432,6 +432,9 @@ dat_initial <- dat_initial %>%
 datclean <- dat_initial %>%
   filter(forestname %in% c(forestname1, forestname2),
          !is.na(ecosub),
+         designcd == 1, 
+         kindcd == 2,
+         qa_status == 1,
          owngrpcd == 40,
          siteclcd <= 6,
          volbfgrs.ac.initial > 4000,
@@ -528,7 +531,7 @@ nochange <- nrow(datclean[datclean$fortypchange=="No change",])
 prevfor
 
 png(paste0("figures/foresttypechange_", region, ".png"), 
-    width=4,
+    width=14,
     height=5, units="in", res = 350 )
 prevfor
 invisible(dev.off())
@@ -733,25 +736,6 @@ barmMean$y <- 0.06
   ggtitle("BAAC % removed by forest group - harvested plots only")
  
  
- if(use.harvest.srs==TRUE){
-  datclean$harvname <- ifelse(datclean$harvest_type1_srs == 11, "Clearcut", 
-                            ifelse(datclean$harvest_type1_srs == 12, "Partial harvest",
-                            ifelse(datclean$harvest_type1_srs == 13, "Shelterwood",
-                            ifelse(datclean$harvest_type1_srs == 14, "Commercial thinning",
-                            ifelse(datclean$harvest_type1_srs == 15, 
-                                   "Timber stand improvement", "Salvage cutting")))))
-
-harvtype <- ggplot(datclean %>% filter(!is.na(harvname)) %>%
-                     group_by(harvname) %>% summarize(count = n()) %>%
-                     left_join(datclean), 
-                           aes(x=reorder(harvname, desc(count)), fill=harvname)) + 
-  geom_bar(position="dodge") +
-  theme_bw() + theme(legend.position = "none") + facet_wrap(~forestname) + 
-  xlab("") + ylab("# of FIA plots") + scale_fill_viridis(discrete=TRUE) +
-  scale_x_discrete(guide = guide_axis(angle=45)) + labs(fill="Harvest type")
-} else{
- 
- 
  harv$clearcut <- ifelse(harv$baac.remv >= 0.7 & harv$harvest==1, "clearcut", "thinning")
  
  clears1 <- table(harv$clearcut[harv$forestname == forestname1])[1]
@@ -768,12 +752,11 @@ harvtype <- ggplot(datclean %>% filter(!is.na(harvname)) %>%
    facet_wrap(~forestname) + theme_classic() +
    labs(x="Initial BAAC", y="% BAA removed", col="Harvest type", fill="Harvest type")
  
-}
 
 grid.arrange(densplot, harvtype, ncol=1)
 
 png(paste0("figures/harvesttypes_", region, ".png"), 
-    width=5,
+    width=15,
     height=10, units="in", res = 350 )
 grid.arrange(densplot, harvtype, ncol=1)
 invisible(dev.off())
@@ -935,13 +918,13 @@ qmdscat
 
 
  png(paste0("figures/qmdcompare_", region, ".png"), 
-    width=4,
+    width=8,
     height=5, units="in", res = 350 )
 qmdscat
 invisible(dev.off())
 
 png(paste0("figures/violinplot_", region, ".png"), 
-    width=4,
+    width=7,
     height=5, units="in", res = 350 )
 p.vio
 invisible(dev.off())
@@ -1211,7 +1194,7 @@ ifm <- carbon_out %>%
   
   png(paste0("figures/cgains_", region, ".png"), 
     width=5,
-    height=10, units="in", res = 350 )
+    height=4, units="in", res = 350 )
 gains
 invisible(dev.off())
 

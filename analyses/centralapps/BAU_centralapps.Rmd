@@ -1,5 +1,5 @@
 ---
-title: "BAU Template"
+title: "BAU Central Apps"
 author: "" 
 date: "`r Sys.Date()`"
 output: 
@@ -15,7 +15,7 @@ output:
 
 ## Selecting FIA data
 
-For initial exploration of the data, we will first get FIA plots from **ENTER STATE NAMES HERE**. We are downloading data directly from DataMart for most up to date information. Please modify the above states as necessary. We are then subsetting to ecosections **IF USING ECOSECTIONS, ENTER HERE**. Again, please modify as necessary.  
+For initial exploration of the data, we will first get FIA plots from **MD, OH, PA, WV**. We are downloading data directly from DataMart for most up to date information. Please modify the above states as necessary. We are then subsetting to ecosections **211, 221, 222, 223, 232, M221**. Again, please modify as necessary.  
 
 To clean the data, we are only selecting FIA data that was measured in 1997 or later, when annualized data began. Finally, we are selecting plots that:
 
@@ -23,7 +23,7 @@ To clean the data, we are only selecting FIA data that was measured in 1997 or l
 2. Are not reserves
 3. Are of private ownership
 4. Are single condition class
-6. Are of **ENTER FOREST TYPES HERE** forest types
+6. Are of **Maple / beech / birch group and Oak / hickory group** forest types
 
 
 ```{r, setup, include=FALSE}
@@ -50,29 +50,22 @@ library(sjmisc)
 library(lme4)
 library("ggsci")
 
-#### Do you want to subset to specific counties in the region? If yes, make "TRUE", if no, make "FALSE"
-use.counties = FALSE  #**ADJUST AS NECESSARY**
-
 #### Do you want to subset to specific ecosections? If yes, make "TRUE", if no, make "FALSE"
 use.ecosections = TRUE #**ADJUST AS NECESSARY**
 
-#### Are you working in the southern region? If so, there is a harvest type parameter that can help distinguish harvests. Put TRUE here if you want that code and figure breakdown
-use.harvest.srs = FALSE #**ADJUST AS NECESSARY**
-#**IF 'TRUE', ADJUST LINES 827 TO END OF CHUNK**
-
 ## Input variables to standardize approach across regions
-states <- c() #**ENTER STATE ABBREVIATIONS HERE**
-fullstatelist <- c() #**ENTER STATE NAMES HERE**
-region <- ""  #**ENTER REGION FOLDER NAME HERE**
+states <- c("MD", "OH", "PA", "WV") #**ENTER STATE ABBREVIATIONS HERE**
+fullstatelist <- c("Maryland", "Ohio", "Pennslyvania", "West Virginia") #**ENTER STATE NAMES HERE**
+region <- "centralapps"  #**ENTER REGION FOLDER NAME HERE**
 
 if(use.ecosections==TRUE){
-ecosubstokeep <- c("")  #**ENTER ECOSECTIONS HERE**
+ecosubstokeep <- c("211", "221", "222", "223", "232", "M221")  #**ENTER ECOSECTIONS HERE**
 }
 
 
 ### Organize these in alphabetical order to have consistent and accurate outputs
-forestname1 <-  #**ENTER FIRST FOREST NAME HERE (in alphabetical order)**
-forestname2 <-  #**ENTER SECOND FOREST NAME HERE (in alphabetical order)**
+forestname1 <- "Maple / beech / birch group"  #**ENTER FIRST FOREST NAME HERE (in alphabetical order)**
+forestname2 <- "Oak / hickory group" #**ENTER SECOND FOREST NAME HERE (in alphabetical order)**
 
 ### Add in species level and forest level detail
 specieslist <- read.csv("../input/2021_MasterSpecies.csv")
@@ -88,15 +81,6 @@ forestgroup <- read.csv("../input/REF_FOREST_TYPE_GROUP.csv") %>%
   rename(fortypgrpcd = VALUE) %>%
   rename(forestname = MEANING) %>%
   left_join(forests, multiple = "all")
-
-if(use.counties == TRUE){
-  
-#**ADJUST THIS SECTION AS NECESSARY**
-## Add in countylist to subset down
-counties <- read.csv("../input/countylist.csv")
-counties <- counties[(counties$County %in% c("", "")),] 
-
-}
 
 ### Combine states list to build a dataframe to join with counties list
 statedf <- data.frame(stateabbr=states, State=fullstatelist)
@@ -278,17 +262,10 @@ trees <- left_join(tree, cond, by=c("plt_cn", "invyr", "statecd", "countycd", "u
 ```{r eval=TRUE, include=FALSE}
 ## Clean PLOT table and subset to ecosections of interest
 
-if(use.counties==TRUE){
-counties$Name <- counties$County
-counties <- full_join(counties, fips)
-counties$countyid <- paste(counties$statecd, counties$countycd)
-counties <- counties[!is.na(counties$County),]
-}
-
 allplot = allplot %>%
   filter(invyr > 1997) %>%
   dplyr::select("cn", "ecosubcd", "statecd", "countycd", "unitcd", "lat", "lon", "elev", 
-                "measmon", "measday", "measyear", "remper") %>% 
+                "measmon", "measday", "measyear", "remper", "kindcd", "p2panel", "qa_status", "designcd") %>% 
   mutate(ecosub = substr(ecosubcd, 1, nchar(ecosubcd)-2),
          countyid = paste(statecd, countycd),
          measdate = as.Date(paste(measmon, measday, measyear, sep="-"), format="%m-%d-%Y")) %>%
@@ -299,15 +276,6 @@ if(use.ecosections==TRUE){
   
   allplot <- allplot %>% filter(ecosub %in% c(ecosubstokeep)) 
   
-}
-
-if(use.counties==TRUE){
-allplot$countyid <- paste(allplot$statecd, allplot$countycd)
-
-uniquecounties <- unique(counties$countyid)
-
-### Subset dataframe to unique counties of interest
-allplot <- allplot[(allplot$countyid %in% uniquecounties),]
 }
 
 treeplot = left_join(trees, allplot)
@@ -328,7 +296,7 @@ dat_grouped <- treeplot %>%
                 stand = statuscd.prev == 1 & statuscd == 1 & dia.prev >= 5) %>%
   group_by(plt_cn) %>%
   summarize(across(c(ecosub, ecosubcd, statecd, countycd, plot, unitcd, lat, lon, fortypcd, owngrpcd, stdorgcd, invyr, remper, measdate, prev.plt.cn, prev.prev.plt.cn, prev.prev.prev.plt.cn, dstrbcd1, 
-                     dstrbcd2, dstrbcd3, stdage, siteclcd, spgrpcd,
+                     dstrbcd2, dstrbcd3, stdage, siteclcd, spgrpcd, kindcd, designcd, qa_status,
                      gsstk, elev,  slope, aspect, trtcd1, harvest_type1_srs, physclcd), function(x) first(na.omit(x))),
             ## Calculate % BA removed
             baac.perc.cut = (sum(baac.prev[harv], na.rm=TRUE))/sum(baac.prev[prev], na.rm=TRUE),
@@ -340,10 +308,8 @@ dat_grouped <- treeplot %>%
             avg.desire.standing = sum(desire[stand] * (baac[stand]/sum(baac[stand], na.rm=TRUE)), na.rm=TRUE),
             ## Stand-level total Mt CO2e/acre
             total_mtco2eac = sum(total_mtco2eac, na.rm=TRUE),
-            ## Stand-level BAAC of merchantable trees
-            baac.merch = sum(baac[current], na.rm=TRUE),
             ## Total stand-level BAAC 
-            baac = sum(baac, na.rm=TRUE),
+            baac = sum(baac[current], na.rm=TRUE),
             ## Stand-level TPA
             tpasite = sum(tpa.custom[current], na.rm=TRUE),
             ## Stand-level AG carbon (for covariate analysis or rapid assessments)
@@ -353,13 +319,7 @@ dat_grouped <- treeplot %>%
             ## Stand-level Lorey's Height
             lorey_ht = sum(lorey_ht_part, na.rm = TRUE) / sum(ba_part_lorey, na.rm=TRUE),
             ## Stand-level QMD of merchantable trees
-            qmd = sqrt(baac.merch/(0.005454 * tpasite)),
-            # Initial Ducey-Knapp relative density/ac
-            rd.initial = round(sum(rd.ac.prev[prev], na.rm=TRUE), 4),
-            # Initial Ducey-Knapp relative density/ac, REGENERATION
-            rd.initial.regen = round(sum(rd.ac.prev[prev & spgrpcd != 43], na.rm=TRUE), 4),
-            # Initial Ducey-Knapp relative density/ac in Acceptable Growing Stock
-            rd.initial.ags = round(sum(rd.ac.prev[prev & treeclcd == 2], na.rm=TRUE), 4)) %>%
+            qmd = sqrt(baac/(0.005454 * tpasite))) %>%
   distinct(plt_cn, .keep_all = TRUE) 
 
 ## Species list is downloaded from here: https://www.fia.fs.usda.gov/library/field-guides-methods-proc/#TreeSpecList
@@ -471,11 +431,14 @@ dat_initial <- dat_initial %>%
 datclean <- dat_initial %>%
   filter(forestname %in% c(forestname1, forestname2),
          !is.na(ecosub),
+         kindcd == 2,
+         designcd == 1, 
+         qa_status == 1,
          owngrpcd == 40,
          siteclcd <= 6,
-         volbfgrs.ac.initial > 2000,
+         volbfgrs.ac.initial > 4000,
          stdorgcd == 0,
-         remper <= mean(remper, na.rm=TRUE) + 2)
+         (invyr - invyr.prev) <= mean(invyr - invyr.prev, na.rm=TRUE) + 2)
 
 datclean$harvest <- ifelse(datclean$trtcd1 == 10 | 
                              datclean$baac.perc.cut >= 0.25 & datclean$dstrbcd1 == 0 |
@@ -567,7 +530,7 @@ nochange <- nrow(datclean[datclean$fortypchange=="No change",])
 prevfor
 
 png(paste0("figures/foresttypechange_", region, ".png"), 
-    width=4,
+    width=14,
     height=5, units="in", res = 350 )
 prevfor
 invisible(dev.off())
@@ -772,25 +735,6 @@ barmMean$y <- 0.06
   ggtitle("BAAC % removed by forest group - harvested plots only")
  
  
- if(use.harvest.srs==TRUE){
-  datclean$harvname <- ifelse(datclean$harvest_type1_srs == 11, "Clearcut", 
-                            ifelse(datclean$harvest_type1_srs == 12, "Partial harvest",
-                            ifelse(datclean$harvest_type1_srs == 13, "Shelterwood",
-                            ifelse(datclean$harvest_type1_srs == 14, "Commercial thinning",
-                            ifelse(datclean$harvest_type1_srs == 15, 
-                                   "Timber stand improvement", "Salvage cutting")))))
-
-harvtype <- ggplot(datclean %>% filter(!is.na(harvname)) %>%
-                     group_by(harvname) %>% summarize(count = n()) %>%
-                     left_join(datclean), 
-                           aes(x=reorder(harvname, desc(count)), fill=harvname)) + 
-  geom_bar(position="dodge") +
-  theme_bw() + theme(legend.position = "none") + facet_wrap(~forestname) + 
-  xlab("") + ylab("# of FIA plots") + scale_fill_viridis(discrete=TRUE) +
-  scale_x_discrete(guide = guide_axis(angle=45)) + labs(fill="Harvest type")
-} else{
- 
- 
  harv$clearcut <- ifelse(harv$baac.remv >= 0.7 & harv$harvest==1, "clearcut", "thinning")
  
  clears1 <- table(harv$clearcut[harv$forestname == forestname1])[1]
@@ -807,17 +751,15 @@ harvtype <- ggplot(datclean %>% filter(!is.na(harvname)) %>%
    facet_wrap(~forestname) + theme_classic() +
    labs(x="Initial BAAC", y="% BAA removed", col="Harvest type", fill="Harvest type")
  
-}
 
 grid.arrange(densplot, harvtype, ncol=1)
 
 png(paste0("figures/harvesttypes_", region, ".png"), 
-    width=5,
+    width=15,
     height=10, units="in", res = 350 )
 grid.arrange(densplot, harvtype, ncol=1)
 invisible(dev.off())
 
-##**MOVE THIS CHUNK BACK INTO R CHUNK IF USING SRS TYPE **
 
 ```
 
@@ -975,13 +917,13 @@ qmdscat
 
 
  png(paste0("figures/qmdcompare_", region, ".png"), 
-    width=4,
+    width=8,
     height=5, units="in", res = 350 )
 qmdscat
 invisible(dev.off())
 
 png(paste0("figures/violinplot_", region, ".png"), 
-    width=4,
+    width=7,
     height=5, units="in", res = 350 )
 p.vio
 invisible(dev.off())
@@ -1251,219 +1193,10 @@ ifm <- carbon_out %>%
   
   png(paste0("figures/cgains_", region, ".png"), 
     width=5,
-    height=10, units="in", res = 350 )
+    height=4, units="in", res = 350 )
 gains
 invisible(dev.off())
 
-## $\color{black}{\text{For `r forestname 1`, Let it grow" estimated gains: **`r lig_gains` +/- `r sdlig` Mt CO2e/acre/year** and IFM (25% harvest) estimated gains: **`r ifm_gains` +/- `r sdifm` Mt CO2e/acre/year**}}$
-
-
-## $\color{black}{\text{For `r forestname 2`, Let it grow estimated gains: **`r lig_gainsft` +/- `r sdligft` Mt CO2e/acre/year** and IFM (25% harvest) estimated gains: **`r ifm_gainsft` +/- `r sdifmft` Mt CO2e/acre/year**}}$
 
 ```
 
-
-
-## Quick Covariate Analysis
-```{r, cov, echo=FALSE, message=FALSE, fig.align='center', warning=FALSE, fig.width=8}
-
-library(lme4)
-
-cov = covanalysis %>%
-  select(plt_cn, aspect, countycd, elev, gsstk.initial, harvest, ecosub, qmdchange, desire.prev.initial,
-         baac.initial, qmd.initial, lorey_ht.initial, stdage.initial, desire.prev.initial,
-         baac.remv, slope, statecd, unitcd, forestname, timediff) %>%
-  filter(!is.na(aspect), forestname==forestname1) 
-# If there wasn't a harvest, change NAs to 0s
-cov$qmdchange <- ifelse(is.na(cov$qmdchange), 0, cov$qmdchange)
-cov$baac.remv <- ifelse(is.na(cov$baac.remv), 0, cov$baac.remv)
-
-# Clean the dataframe
-cov <- cov[complete.cases(cov),] 
-
-
-# Z-score all of the variables to go into the models so they standardized and comparable
-cov = cov %>%
-  ungroup() %>%
-  mutate( aspect.z = (aspect - mean(aspect, na.rm=TRUE)) / (2 * sd(aspect, na.rm=TRUE)),
-          elev.z = (elev - mean(elev, na.rm=TRUE)) / (2 * sd(elev, na.rm=TRUE)),
-          #carb.z = (carbon.initial - mean(carbon.initial, na.rm=TRUE)) / (2 * sd(carbon.initial, na.rm=TRUE)),
-          gsstk.z = (gsstk.initial - mean(gsstk.initial, na.rm=TRUE)) / (2 * sd(gsstk.initial, na.rm=TRUE)),
-          BAperAcre = (baac.initial - mean(baac.initial, na.rm=TRUE)) / (2 * sd(baac.initial, na.rm=TRUE)),
-          stdage.z = (stdage.initial - mean(stdage.initial, na.rm=TRUE)) / (2 * sd(stdage.initial, na.rm=TRUE)),
-          QMD = (qmd.initial - mean(qmd.initial, na.rm=TRUE)) / (2 * sd(qmd.initial, na.rm=TRUE)),
-          Slope = (slope - mean(slope, na.rm=TRUE)) / (2 * sd(slope, na.rm=TRUE)),
-          Species.Desirability = (desire.prev.initial - mean(desire.prev.initial, na.rm=TRUE)) / (2 * sd(desire.prev.initial, na.rm=TRUE)),
-          Lorey.Height = (lorey_ht.initial - mean(lorey_ht.initial, na.rm=TRUE)) / (2 * sd(lorey_ht.initial, na.rm=TRUE)))
-
-
-# Create a unique code for each unit x state
-cov$unitid = paste(cov$unitcd, cov$statecd)
-cov <- cov[complete.cases(cov),]
-
-if(length(unique(cov$unitid))>1){
-hl <- glmer( (harvest*(20/timediff))*100 ~ Lorey.Height + 
-             BAperAcre + 
-             QMD + Species.Desirability + Slope + 
-             (Lorey.Height + 
-                BAperAcre + 
-                QMD + Species.Desirability + Slope | unitid), data=cov)
-}else if(nrow(cov)>1){
-hl <- glm( (harvest*(20/timediff))*100 ~ Lorey.Height + 
-             BAperAcre + 
-             QMD + Species.Desirability + Slope, data=cov)
-}
-
-## Run a bayesian model to look at removal rates
-covharv <- cov[(cov$harvest==1),]
-
-if(length(unique(covharv$unitid))>78){
-hi <- lmer( baac.remv*100 ~ Lorey.Height + 
-             BAperAcre + 
-             QMD + Species.Desirability + Slope + 
-             (Lorey.Height + 
-                BAperAcre + 
-                QMD + Species.Desirability + Slope | unitid), data=covharv)
-}else if(length(unique(covharv$unitid))>2 && length(unique(covharv$unitid)) < 79){
-  hi <- lmer( baac.remv*100 ~ Lorey.Height + 
-             BAperAcre + 
-             QMD + Species.Desirability + Slope + 
-             (1 | unitid), data=covharv)
-  
-  
-  }else if(nrow(covharv)>1){
-  hi <- lm( baac.remv*100 ~ Lorey.Height + 
-             BAperAcre + 
-             QMD + Species.Desirability + Slope, data=covharv)
-  
-  
-}
-
-### Build the figures for output
-library(sjPlot)
-library(sjlabelled)
-library(sjmisc)
-
-theme_set(theme_sjplot())
-hlplot <- sjPlot::plot_model(hl, vline.color = "black", 
-                   title = paste0("Harvest likelihood\n", forestname1)) 
-
-hiplot <- sjPlot::plot_model(hi, vline.color = "black", 
-                   title = paste0("Harvest intensity\n", forestname1))
-
-
-png(paste0("figures/covanalysis_harvestlikelihood_forestname1", region, ".png"), 
-    width=5,
-    height=10, units="in", res = 350 )
-grid.arrange(hlplot, hiplot, ncol=1)
-invisible(dev.off())
-
-
-###### For second forest type
-cov2 = covanalysis %>%
-  select(plt_cn, aspect, countycd, elev, gsstk.initial, harvest, ecosub, qmdchange, desire.prev.initial,
-         baac.initial, qmd.initial, lorey_ht.initial, stdage.initial, desire.prev.initial,
-         baac.remv, slope, statecd, unitcd, forestname, timediff) %>%
-  filter(!is.na(aspect), forestname==forestname2) 
-# If there wasn't a harvest, change NAs to 0s
-cov2$qmdchange <- ifelse(is.na(cov2$qmdchange), 0, cov2$qmdchange)
-cov2$baac.remv <- ifelse(is.na(cov2$baac.remv), 0, cov2$baac.remv)
-
-# Clean the dataframe
-cov2 <- cov2[complete.cases(cov2),] 
-
-
-# Z-score all of the variables to go into the models so they standardized and comparable
-cov2 = cov2 %>%
-  ungroup() %>%
-  mutate( aspect.z = (aspect - mean(aspect, na.rm=TRUE)) / (2 * sd(aspect, na.rm=TRUE)),
-          elev.z = (elev - mean(elev, na.rm=TRUE)) / (2 * sd(elev, na.rm=TRUE)),
-          #carb.z = (carbon.initial - mean(carbon.initial, na.rm=TRUE)) / (2 * sd(carbon.initial, na.rm=TRUE)),
-          gsstk.z = (gsstk.initial - mean(gsstk.initial, na.rm=TRUE)) / (2 * sd(gsstk.initial, na.rm=TRUE)),
-          BAperAcre = (baac.initial - mean(baac.initial, na.rm=TRUE)) / (2 * sd(baac.initial, na.rm=TRUE)),
-          stdage.z = (stdage.initial - mean(stdage.initial, na.rm=TRUE)) / (2 * sd(stdage.initial, na.rm=TRUE)),
-          QMD = (qmd.initial - mean(qmd.initial, na.rm=TRUE)) / (2 * sd(qmd.initial, na.rm=TRUE)),
-          Slope = (slope - mean(slope, na.rm=TRUE)) / (2 * sd(slope, na.rm=TRUE)),
-          Species.Desirability = (desire.prev.initial - mean(desire.prev.initial, na.rm=TRUE)) / (2 * sd(desire.prev.initial, na.rm=TRUE)),
-          Lorey.Height = (lorey_ht.initial - mean(lorey_ht.initial, na.rm=TRUE)) / (2 * sd(lorey_ht.initial, na.rm=TRUE)))
-
-
-# Create a unique code for each unit x state
-cov2$unitid = paste(cov2$unitcd, cov2$statecd)
-cov2 <- cov2[complete.cases(cov2),]
-
-if(length(unique(cov2$unitid))>1){
-hl2 <- glmer( (harvest*(20/timediff))*100 ~ Lorey.Height + 
-             BAperAcre + 
-             QMD + Species.Desirability + Slope + 
-             (Lorey.Height + 
-                BAperAcre + 
-                QMD + Species.Desirability + Slope | unitid), data=cov2)
-}else if(nrow(cov2)>1){
-hl2 <- glm( (harvest*(20/timediff))*100 ~ Lorey.Height + 
-             BAperAcre + 
-             QMD + Species.Desirability + Slope, data=cov2)
-}
-
-## Run a bayesian model to look at removal rates
-covharv2 <- cov2[(cov2$harvest==1),]
-
-if(length(unique(covharv2$unitid))>78){
-hi2 <- lmer( baac.remv*100 ~ Lorey.Height + 
-             BAperAcre + 
-             QMD + Species.Desirability + Slope + 
-             (Lorey.Height + 
-                BAperAcre + 
-                QMD + Species.Desirability + Slope | unitid), data=covharv2)
-}else if(length(unique(covharv2$unitid))>2 && length(unique(covharv2$unitid)) < 79){
-  hi2 <- lmer( baac.remv*100 ~ Lorey.Height + 
-             BAperAcre + 
-             QMD + Species.Desirability + Slope + 
-             (1 | unitid), data=covharv2)
-  
-  
-  }else if(nrow(covharv2)>1){
-  hi2 <- lm( baac.remv*100 ~ Lorey.Height + 
-             BAperAcre + 
-             QMD + Species.Desirability + Slope, data=covharv2)
-  
-  
-}
-
-### Build the figures for output
-library(sjPlot)
-library(sjlabelled)
-library(sjmisc)
-
-theme_set(theme_sjplot())
-if(exists("hl2")){
-hl2plot <- sjPlot::plot_model(hl2, vline.color = "black", 
-                   title = paste0("Harvest likelihood\n", forestname2)) 
-}
-
-if(exists("hi2")){
-hi2plot <- sjPlot::plot_model(hi2, vline.color = "black", 
-                   title = paste0("Harvest intensity\n", forestname2))
-}
-
-if(exists("hl2plot") && exists("hi2plot")){
-png(paste0("figures/covanalysis_harvestlikelihood_forestname2", region, ".png"), 
-    width=5,
-    height=10, units="in", res = 350 )
-grid.arrange(hl2plot, hi2plot, ncol=1)
-invisible(dev.off())
-}
-
-
-
-if(exists("hlplot") && exists("hiplot")){
-  
-  grid.arrange(hl2plot, hi2plot, ncol=2)
-  
-}else if(exists("hl2plot") && exists("hi2plot")){
-  
-  grid.arrange(hlplot, hiplot, ncol=2)
-  
-}
-
-```

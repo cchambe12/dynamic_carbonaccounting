@@ -2,6 +2,26 @@
 *fiadata/
 *db/
 
+*analyses/northeast/output/
+*analyses/northeast/fvs/01_fvssimulations/output/
+*analyses/northeast/fvs/02_carbonaccounting/output/
+
+*analyses/northwoods/output/
+*analyses/northwoods/fvs/01_fvssimulations/output/
+*analyses/northwoods/fvs/02_carbonaccounting/output/
+
+*analyses/centralapps/output/
+*analyses/centralapps/fvs/01_fvssimulations/output/
+*analyses/centralapps/fvs/02_carbonaccounting/output/
+
+*analyses/southernapps/output/
+*analyses/southernapps/fvs/01_fvssimulations/output/
+*analyses/southernapps/fvs/02_carbonaccounting/output/
+
+*.html
+**.html
+
+
 # History files
 .Rhistory
 .Rapp.history
