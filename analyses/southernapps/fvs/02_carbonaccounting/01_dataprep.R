@@ -16,10 +16,10 @@ library(ggplot2)
 library(tidyr)
 
 ## Set Working Directory
-setwd("~/Documents/git/dynamic_carbonaccounting/analyses/southernapps/fvs")
+setwd("~/Documents/git/dynamic_carbonaccounting/analyses/southernapps/fvs/02_carbonaccounting/")
 
 ## Set up the destination folder
-datafolder <- "~/Documents/git/dynamic_carbonaccounting/analyses/southernapps/fvs/output/"
+datafolder <- "~/Documents/git/dynamic_carbonaccounting/analyses/southernapps/fvs/02_carbonaccounting/output/"
 
 ## Are you assessing Maple / beech / birch or Oak / hickory? If Oak / Hickory then say TRUE
 useoak <- TRUE
@@ -40,7 +40,7 @@ if(useoak == TRUE){
 
 ## connect to db
 con <- dbConnect(drv=RSQLite::SQLite(), 
-                 dbname=paste0("~/Documents/git/dynamic_carbonaccounting/analyses/northeast/fvs/01_fvssimulations/output/", i, ".sqlite"))
+                 dbname=paste0("~/Documents/git/dynamic_carbonaccounting/analyses/southernapps/fvs/01_fvssimulations/output/", i, ".sqlite"))
 
 ## list all tables
 tables <- dbListTables(con)

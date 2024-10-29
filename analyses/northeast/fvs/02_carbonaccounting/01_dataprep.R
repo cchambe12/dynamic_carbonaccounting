@@ -16,13 +16,13 @@ library(ggplot2)
 library(tidyr)
 
 ## Set Working Directory
-setwd("~/Documents/git/dynamic_carbonaccounting/analyses/northeast/fvs")
+setwd("~/Documents/git/dynamic_carbonaccounting/analyses/northeast/fvs/02_carbonaccounting/")
 
 ## Set up the destination folder
-datafolder <- "~/Documents/git/dynamic_carbonaccounting/analyses/northeast/fvs/output/"
+datafolder <- "~/Documents/git/dynamic_carbonaccounting/analyses/northeast/fvs/02_carbonaccounting/output/"
 
 ## Are you assessing Maple / beech / birch or Oak / hickory? If Oak / Hickory then say TRUE
-useoak <- TRUE
+useoak <- FALSE
 
 
 ##################### Saving key files ###################

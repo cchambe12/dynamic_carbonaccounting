@@ -3,7 +3,7 @@ NoTriple
 
 ! Set unique stand identifier
 StdIdent
-MBB_GROW
+OAK_GROW
 
 ! Set stand sequence number for FIA query
 StandCN

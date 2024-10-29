@@ -11,3 +11,9 @@ Step 3: Identify parcels most likely to harvest over the next 20 years to ensure
 #### 2) Central Appalachians - Maryland, Ohio, Pennsylvania, West Virginia
 #### 3) Southern Appalachians - Alabama, Georgia, Kentucky, North Carolina, South Carolina, Tennessee, Virginia
 #### 4) Northwoods - Michigan, Minnesota, Wisconsin
+
+
+## Future Directions
+#### 1a) Dynamic Baseline Paper - using historic FIA data, mock up what dynamic crediting would actually look like
+#### 1b) Dynamic Baseline Paper - could we also leverage FVS and show what static vs dynamic baselining would look like or would this more be static vs composite
+#### 2) Compare crediting for one example project across two methodologies e.g., UT project comparing ACR to VM0045

@@ -13,8 +13,8 @@ from tqdm import tqdm
 # ------------------------------------------------------------------------------
 
 # Build list of mbb statewide FIA queries
-oak_states = [OAK(state='mn'), OAK(state='wi'), OAK(state='mi'),
-              OAK(state='il'), OAK(state='in'), OAK(state='ia'),OAK(state='oh')]
+oak_states = [OAK(state='al'), OAK(state='ky'),
+              OAK(state='nc'), OAK(state='sc'), OAK(state='tn'),OAK(state='va')]
 
 # Build list of mbb scenario keyword files to simulate
 oak_kws = [KeywordFile('oak-grow'), KeywordFile('oak-bau'),
@@ -32,7 +32,8 @@ for state in tqdm(oak_states, desc='states', position=0, leave=False):
 # ------------------------------------------------------------------------------
 
 # Build list of mbb statewide FIA queries
-mbb_states = [MBB(state='mn'), MBB(state='wi'), MBB(state='mi')]
+mbb_states = [MBB(state='al'), MBB(state='ky'),
+              MBB(state='nc'), MBB(state='sc'), MBB(state='tn'),MBB(state='va')]
 
 # Build list of mbb scenario keyword files to simulate
 mbb_kws = [KeywordFile('mbb-grow'), KeywordFile('mbb-bau'),

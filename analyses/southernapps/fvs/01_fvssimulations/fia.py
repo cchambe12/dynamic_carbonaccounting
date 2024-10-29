@@ -46,7 +46,7 @@ class PlotCollection:
         """
 
         # Connect to the FIA database if exists
-        db_path = f'./././db/FIADB_{self.state.upper()}.db'
+        db_path = f'./db/FIADB_{self.state.upper()}.db'
         if os.path.exists(db_path):
             db = sqlite3.connect(db_path)
         else:

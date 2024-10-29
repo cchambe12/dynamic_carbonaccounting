@@ -3,7 +3,7 @@ NoTriple
 
 ! Set unique stand identifier
 StdIdent
-MBB_GMF
+OAK_GMF
 
 ! Set stand sequence number for FIA query
 StandCN

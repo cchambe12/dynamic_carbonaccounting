@@ -23,7 +23,7 @@ class InvYearRange(NamedTuple):
     """Typing class for inventory year range values
     """
     min: int = 2014
-    max: int = 2024
+    max: int = 2019
 
 
 @dataclass
@@ -39,14 +39,14 @@ class PlotCollection:
     inv_range: InvYearRange = InvYearRange()
     plots: list[str] = field(default_factory=list)
     ba_minimum: int = 50
-    #ecoregion: int = 223
+    #ecoregion = "M221"
 
     def __post_init__(self):
         """Automatically query and filter FIA plot after initialization
         """
 
         # Connect to the FIA database if exists
-        db_path = f'./././db/FIADB_{self.state.upper()}.db'
+        db_path = f'./db/FIADB_{self.state.upper()}.db'
         if os.path.exists(db_path):
             db = sqlite3.connect(db_path)
         else:
@@ -55,7 +55,8 @@ class PlotCollection:
         # Configure the query string and query the PLOT table
         qstr = f"SELECT CN FROM PLOT WHERE \
                 DESIGNCD = 1 \
-                AND INVYR >= {self.inv_range.min} AND INVYR <= {self.inv_range.max};" 
+                AND INVYR >= {self.inv_range.min} AND INVYR <= {self.inv_range.max};"# \
+                #AND SUBSTR(REPLACE(ECOSUBCD, ' ', ''), 1, 3) = '{self.ecoregion}';"
         plots = pd.read_sql_query(qstr, db)
 
         # Configure the query string and query the CONDITION table
@@ -84,7 +85,7 @@ class OAK (PlotCollection):
     ba_minimum: int = 50
 
 @dataclass
-class MBB(PlotCollection):
+class MBB (PlotCollection):
     """Plot collection sub class for maple/beech/birch forest type
     """
 

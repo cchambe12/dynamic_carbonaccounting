@@ -3,7 +3,7 @@ NoTriple
 
 ! Set unique stand identifier
 StdIdent
-MBB_GMF
+OAK_GMF
 
 ! Set stand sequence number for FIA query
 StandCN
@@ -15,7 +15,7 @@ $state
 
 ! Set time interval and number of cycles
 TimeInt          0          5
-NumCycle         9
+NumCycle         6
 
 ! Specify input data
 DataBase
@@ -64,6 +64,7 @@ CARBREDB         2
 SUMMARY
 COMPUTDB
 End
+
 
 ! Compute target basal area each cycle
 COMPUTE           0 

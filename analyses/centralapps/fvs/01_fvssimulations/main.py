@@ -13,8 +13,8 @@ from tqdm import tqdm
 # ------------------------------------------------------------------------------
 
 # Build list of mbb statewide FIA queries
-oak_states = [OAK(state='mn'), OAK(state='wi'), OAK(state='mi'),
-              OAK(state='il'), OAK(state='in'), OAK(state='ia'),OAK(state='oh')]
+oak_states = [OAK(state='md'), OAK(state='oh'), OAK(state='pa'),
+              OAK(state='wv')]
 
 # Build list of mbb scenario keyword files to simulate
 oak_kws = [KeywordFile('oak-grow'), KeywordFile('oak-bau'),
@@ -32,16 +32,16 @@ for state in tqdm(oak_states, desc='states', position=0, leave=False):
 # ------------------------------------------------------------------------------
 
 # Build list of mbb statewide FIA queries
-mbb_states = [MBB(state='mn'), MBB(state='wi'), MBB(state='mi'),
-              MBB(state='il'), MBB(state='in'), MBB(state='ia'),MBB(state='oh')]
+mbb_states = [MBB(state='md'), MBB(state='oh'), MBB(state='pa'),
+              MBB(state='wv')]
 
 # Build list of mbb scenario keyword files to simulate
 mbb_kws = [KeywordFile('mbb-grow'), KeywordFile('mbb-bau'),
            KeywordFile('mbb-cut25')]
 
 # Run FVS on each plot for each scenario in each state
-for state in tqdm(oak_states, desc='states', position=0, leave=False):
-    for kw in tqdm(oak_kws, desc='keywords', position=1, leave=False):
+for state in tqdm(mbb_states, desc='states', position=0, leave=False):
+    for kw in tqdm(mbb_kws, desc='keywords', position=1, leave=False):
         for plot in tqdm(state.plots, desc='plots', position=2, leave=False):
             rtn = run(kw.publish(plot, state.state, 10))
             

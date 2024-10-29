@@ -50,6 +50,7 @@ class KeywordFile:
             plot_id=plot_id, state=state.upper(),
             year=year)
 
+
         return kw_file
 
 
@@ -65,7 +66,7 @@ def run(kwfile: str) -> int:
 
     # Set the path to the FVS lake states variant executable
     #exepath = './open-fvs2/trunk/bin/FVSls.exe'
-    exepath = '/Users/c.chamberlain/Documents/git/ForestVegetationSimulator/bin/FVSne'
+    exepath = '/Users/c.chamberlain/Documents/git/ForestVegetationSimulator-Interface-main/bin/FVSne'
 
     # Write the keyword file to disk
     with open('./input/tmp.key', 'w') as f:

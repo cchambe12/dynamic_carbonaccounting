@@ -436,7 +436,7 @@ datclean <- dat_initial %>%
          qa_status == 1,
          owngrpcd == 40,
          siteclcd <= 6,
-         volbfgrs.ac.initial > 4000,
+         #volbfgrs.ac.initial > 4000,
          stdorgcd == 0,
          (invyr - invyr.prev) <= mean(invyr - invyr.prev, na.rm=TRUE) + 2)
 

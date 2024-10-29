@@ -21,10 +21,10 @@ library("ggsci")
 library(boot)
 
 ## Set working directory
-setwd("~/Documents/git/dynamic_carbonaccounting/analyses/centralapps/fvs")
+setwd("~/Documents/git/dynamic_carbonaccounting/analyses/centralapps/fvs/02_carbonaccounting/")
 
 ### Select input/output folder
-datafolder <- "~/Documents/git/dynamic_carbonaccounting/analyses/centralapps/fvs/output/"
+datafolder <- "~/Documents/git/dynamic_carbonaccounting/analyses/centralapps/fvs/02_carbonaccounting/output/"
 
 ## Are you assessing Maple / beech / birch or Oak / hickory? If Oak / Hickory then say TRUE
 useoak <- TRUE
@@ -37,10 +37,10 @@ useoak <- TRUE
 if(useoak == TRUE){
   i <- "oak"
   ## What is the harvest likelihood over the 20-year period
-  oakrate <- 0.22
+  oakrate <- 0.27
 }else{
   i <- "mbb"
-  mbbrate <- 0.28
+  mbbrate <- 0.45
 }
 timestamp <- 20
 
@@ -213,33 +213,9 @@ if(useoak == TRUE){
     #filter(!StandID %in% c("OAK_GROW")) %>%
     mutate(StandID = substr(StandID, 5, nchar(StandID)))
   
-  write.csv(cleancarb, "output/clean_fvsoutput_mbb.csv", row.names=FALSE)
+  write.csv(cleancarb, "output/clean_fvsoutput_oak.csv", row.names=FALSE)
   
-  png(paste0("figures/totalcarbon_overtime_oak.png"), 
-      width=7, height=5, unit="in", res=200)
-  ggplot(cleancarb, aes(y=Total_Stand_Carbon, x=Year, col = StandID, fill=StandID)) + 
-    geom_smooth(method="loess", 
-                aes(ymax = after_stat(y) + 3,
-                    ymin = after_stat(y) - 3)) + 
-    scale_color_viridis(discrete = TRUE, name="Practice") +
-    scale_fill_viridis(discrete = TRUE, name = "Practice") +
-    theme_bw() + xlab("") + ylab("Total Mt CO2 per acre")
-  dev.off()
-
-
-  png(paste0("figures/carbongains_oak.png"), 
-      width=7, height=5, unit="in", res=200)
-  ggplot(cleancarb %>% filter(StandID != "BAU", time <= 20) %>% 
-           group_by(StandID) %>%
-           summarize(meanc = mean(delta, na.rm=TRUE)), 
-         aes(y=meanc, x=StandID, col = StandID, fill=StandID)) + 
-    geom_col() + 
-    scale_color_viridis(discrete = TRUE, name="Practice") +
-    scale_fill_viridis(discrete = TRUE, name = "Practice") +
-    theme_bw() + xlab("") + ylab("Total Mt CO2 per acre")
-  dev.off()
-  
-}else {
+}else if(useoak == FALSE) {
   
   mbb.bau <- mean(w.carb$MBB_BAU, na.rm = TRUE)
   mbb.gmf <- mean(w.carb$MBB_GMF, na.rm = TRUE)
@@ -279,7 +255,12 @@ if(useoak == TRUE){
   
   write.csv(cleancarb, "output/clean_fvsoutput_mbb.csv", row.names=FALSE)
   
-  png(paste0("figures/totalcarbon_overtime_mbb.png"), 
+  
+}
+
+if(useoak == TRUE){
+
+  png("figures/totalcarbon_overtime_oak.png", 
       width=7, height=5, unit="in", res=200)
   ggplot(cleancarb, aes(y=Total_Stand_Carbon, x=Year, col = StandID, fill=StandID)) + 
     geom_smooth(method="loess", 
@@ -291,21 +272,51 @@ if(useoak == TRUE){
   dev.off()
   
   
-  png(paste0("figures/carbongains_mbb.png"), 
+  png("figures/carbongains_oak.png", 
       width=7, height=5, unit="in", res=200)
   ggplot(cleancarb %>% filter(StandID != "BAU", time <= 20) %>% 
            group_by(StandID) %>%
-           summarize(meanc = mean(delta, na.rm=TRUE)), 
+           mutate(StandID = ifelse(StandID == "GROW", "Extended Rotation", "25% allowable cut")) %>%
+           summarize(meanc = mean(delta, na.rm=TRUE),
+                     sec = sd(delta, na.rm=TRUE)/sqrt(length(delta))), 
          aes(y=meanc, x=StandID, col = StandID, fill=StandID)) + 
-    geom_col() + 
+    geom_col() + geom_errorbar(aes(ymin = meanc - sec, ymax = meanc + sec)) +
+    scale_color_d3(name="Practice", palette = "category20b") +
+    scale_fill_d3(name = "Practice", palette = "category20b") +
+    theme_bw() + xlab("") + ylab("Total Mt CO2 per acre") +
+    theme(legend.position = "none") +
+    scale_x_discrete(guide = guide_axis(angle=45)) +
+    geom_text(aes(label = round(meanc, digits=2)), y=0.08, col="white") 
+  dev.off()
+  
+}else if(useoak == FALSE) {
+
+  png("figures/totalcarbon_overtime_mbb.png", 
+      width=7, height=5, unit="in", res=200)
+  ggplot(cleancarb, aes(y=Total_Stand_Carbon, x=Year, col = StandID, fill=StandID)) + 
+    geom_smooth(method="loess", 
+                aes(ymax = after_stat(y) + 3,
+                    ymin = after_stat(y) - 3)) + 
     scale_color_viridis(discrete = TRUE, name="Practice") +
     scale_fill_viridis(discrete = TRUE, name = "Practice") +
     theme_bw() + xlab("") + ylab("Total Mt CO2 per acre")
   dev.off()
   
+  
+  png("figures/carbongains_mbb.png", 
+      width=7, height=5, unit="in", res=200)
+  ggplot(cleancarb %>% filter(StandID != "BAU", time <= 20) %>% 
+           group_by(StandID) %>%
+           mutate(StandID = ifelse(StandID == "GROW", "Extended Rotation", "25% allowable cut")) %>%
+           summarize(meanc = mean(delta, na.rm=TRUE),
+                     sec = sd(delta, na.rm=TRUE)/sqrt(length(delta))), 
+         aes(y=meanc, x=StandID, col = StandID, fill=StandID)) + 
+    geom_col() + geom_errorbar(aes(ymin = meanc - sec, ymax = meanc + sec)) +
+    scale_color_d3(name="Practice", palette = "category20b") +
+    scale_fill_d3(name = "Practice", palette = "category20b") +
+    theme_bw() + xlab("") + ylab("Total Mt CO2 per acre") +
+    theme(legend.position = "none") +
+    scale_x_discrete(guide = guide_axis(angle=45)) +
+    geom_text(aes(label = round(meanc, digits=2)), y=0.08, col="white") 
+  dev.off()
 }
-
-
-
-
-
