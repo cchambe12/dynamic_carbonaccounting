@@ -45,6 +45,19 @@ if(useoak == TRUE){
 timestamp <- 20
 
 
+################################################################################
+#### Get the FIA data from the prefeasibility scoping with eligibility thresholds
+if(useoak == TRUE){
+  i <- "oak"
+  bau <- read.csv( "output/clean_southernapps_fiadata.csv") %>%
+    filter(forestname == "Oak / hickory group")
+}else {
+  i <- "mbb"
+  bau <- read.csv( "output/clean_southernapps_fiadata.csv") %>%
+    filter(forestname == "Maple / beech / birch group")
+}
+
+
 #### Get FVS names of species
 fvscodes <- read.csv("input/specieslookup.csv") 
 colnames(fvscodes) <- fvscodes[1,]
@@ -148,17 +161,11 @@ carb <- carb %>%
               ungroup() %>%
               filter(time == 0) %>%
               select(StandID,Age,Tpa,BA,MCuFt,Stand_CN)) %>%
-  #Make some groups based on initial basal area
-  mutate(BA_tier = cut(BA, 
-                       breaks = c(49,75,90,130,250),
-                       labels = c("t50_75","t75_90","t90_130","t130_"))) %>%
   filter(time <= timestamp)
 
 #Summarize average carbon storage rates
 carb %>%
   filter(time <= timestamp) %>% 
-  #optional: filter by BA
-  #filter(BA > 90) %>%
   group_by(StandID) %>%
   summarise(mean = mean(delta, na.rm = TRUE)*(44/12))
 
@@ -170,152 +177,85 @@ w.carb <- carb %>%
   #Put delta in wide format
   pivot_wider(data = ., names_from = StandID, values_from = delta) %>%
   #first, calculate the difference between treatments
-  filter(time %in% c(5,10,15,20)) %>% #just the years we want
+  filter(time <= timestamp) %>% #just the years we want
   arrange(Stand_CN, time)
 
 
 #Make variables for the  function
 if(useoak == TRUE){
   
-  oak.bau <- mean(w.carb$OAK_BAU, na.rm = TRUE)
-  oak.gmf <- mean(w.carb$OAK_GMF, na.rm = TRUE)
-  oak.grow <- mean(w.carb$OAK_GROW, na.rm = TRUE)
-  c(oak.bau, oak.gmf, oak.grow)*(44/12)
-  
-  carbon.calc <- function(FOR, ifm.hr, bau.hr, r = 0) {
-    #Helpful values
-    ifm.res <- 1-ifm.hr
-    bau.res <- 1-bau.hr
-    
+  cleancarb <- w.carb %>%
     #Calculate scenarios
-      calc.oak.gmf <- (oak.gmf*ifm.hr + oak.grow*ifm.res)*(44/12)
-      calc.oak.bau <- (oak.bau*bau.hr + oak.grow*bau.res)*(44/12)
-      calc.oak.grow <- oak.grow*(44/12)
-      #Calculate deltas
-      delta.oak.gmf <- calc.oak.gmf - calc.oak.bau
-      delta.oak.grow <- calc.oak.grow - calc.oak.bau
-      #Return values
-      return(data.frame("GROW" = calc.oak.grow,
-                        "GMF" = calc.oak.gmf,
-                        "BAU" = calc.oak.bau,
-                        "delta.gmf" = delta.oak.gmf,
-                        "delta.grow" = delta.oak.grow))
-  }
+    mutate(calc.oak.gmf = (OAK_GMF*oakrate + OAK_GROW*(1-oakrate))*(44/12),
+           calc.oak.bau = (OAK_BAU*oakrate + OAK_GROW*(1-oakrate))*(44/12),
+           calc.oak.grow = OAK_GROW*(44/12),
+           #Calculate deltas
+           delta.oak.gmf = calc.oak.gmf - calc.oak.bau,
+           delta.oak.grow = calc.oak.grow - calc.oak.bau) %>%
+    rename(plt_cn = Stand_CN) %>%
+    left_join(bau)
   
-
-
-  #Now, pick your forest type, the harvest rate for ifm and bau,
-  #and the reserve size (default 0)
-  carbon.calc("OAK", oakrate, oakrate, 0)
+  mean(cleancarb$delta.oak.gmf)
+  mean(cleancarb$delta.oak.grow)
   
   
-  cleancarb <- carb %>%
-    #filter(!StandID %in% c("OAK_GROW")) %>%
-    mutate(StandID = substr(StandID, 5, nchar(StandID)))
+}else if(useoak == FALSE) {
   
-  write.csv(cleancarb, "output/clean_fvsoutput_mbb.csv", row.names=FALSE)
-  
-  png(paste0("figures/totalcarbon_overtime_oak.png"), 
-      width=7, height=5, unit="in", res=200)
-  ggplot(cleancarb, aes(y=Total_Stand_Carbon, x=Year, col = StandID, fill=StandID)) + 
-    geom_smooth(method="loess", 
-                aes(ymax = after_stat(y) + 3,
-                    ymin = after_stat(y) - 3)) + 
-    scale_color_viridis(discrete = TRUE, name="Practice") +
-    scale_fill_viridis(discrete = TRUE, name = "Practice") +
-    theme_bw() + xlab("") + ylab("Total Mt CO2 per acre")
-  dev.off()
-
-
-  png(paste0("figures/carbongains_oak.png"), 
-      width=7, height=5, unit="in", res=200)
-  ggplot(cleancarb %>% filter(StandID != "BAU", time <= 20) %>% 
-           group_by(StandID) %>%
-           mutate(StandID = ifelse(StandID == "GROW", "Extended Rotation", "25% allowable cut")) %>%
-           summarize(meanc = mean(delta, na.rm=TRUE),
-                     sec = sd(delta, na.rm=TRUE)/sqrt(length(delta))), 
-         aes(y=meanc, x=StandID, col = StandID, fill=StandID)) + 
-    geom_col() + geom_errorbar(aes(ymin = meanc - sec, ymax = meanc + sec)) +
-    scale_color_d3(name="Practice", palette = "category20b") +
-    scale_fill_d3(name = "Practice", palette = "category20b") +
-    theme_bw() + xlab("") + ylab("Total Mt CO2 per acre") +
-    theme(legend.position = "none") +
-    scale_x_discrete(guide = guide_axis(angle=45)) +
-    geom_text(aes(label = round(meanc, digits=2)), y=0.08, col="white") 
-  dev.off()
-  
-}else {
-  
-  mbb.bau <- mean(w.carb$MBB_BAU, na.rm = TRUE)
-  mbb.gmf <- mean(w.carb$MBB_GMF, na.rm = TRUE)
-  mbb.grow <- mean(w.carb$MBB_GROW, na.rm = TRUE)
-  c(mbb.bau, mbb.gmf, mbb.grow)*(44/12)
-  
-  carbon.calc <- function(FOR, ifm.hr, bau.hr, r = 0) {
-    #Helpful values
-    ifm.res <- 1-ifm.hr
-    bau.res <- 1-bau.hr
-    
+  cleancarb <- w.carb %>%
+    #filter(time == timestamp) %>%
     #Calculate scenarios
-    calc.mbb.gmf <- (mbb.gmf*ifm.hr + mbb.grow*ifm.res)*(44/12)
-    calc.mbb.bau <- (mbb.bau*bau.hr + mbb.grow*bau.res)*(44/12)
-    calc.mbb.grow <- mbb.grow*(44/12)
-    #Calculate deltas
-    delta.mbb.gmf <- calc.mbb.gmf - calc.mbb.bau
-    delta.mbb.grow <- calc.mbb.grow - calc.mbb.bau
-    #Return values
-    return(data.frame("GROW" = calc.mbb.grow,
-                      "GMF" = calc.mbb.gmf,
-                      "BAU" = calc.mbb.bau,
-                      "delta.gmf" = delta.mbb.gmf,
-                      "delta.grow" = delta.mbb.grow))
-  }
+    mutate(calc.mbb.gmf = (MBB_GMF*mbbrate + MBB_GROW*(1-mbbrate))*(44/12),
+           calc.mbb.bau = (MBB_BAU*mbbrate + MBB_GROW*(1-mbbrate))*(44/12),
+           calc.mbb.grow = MBB_GROW*(44/12),
+           #Calculate deltas
+           delta.mbb.gmf = calc.mbb.gmf - calc.mbb.bau,
+           delta.mbb.grow = calc.mbb.grow - calc.mbb.bau) %>%
+    rename(plt_cn = Stand_CN) %>%
+    left_join(bau)
   
+  mean(cleancarb$delta.mbb.gmf)
+  mean(cleancarb$delta.mbb.grow)
   
-  
-  #Now, pick your forest type, the harvest rate for ifm and bau,
-  #and the reserve size (default 0)
-  carbon.calc("MBB", mbbrate, mbbrate, 0)
-  
-  
-  cleancarb <- carb %>%
-    #filter(!StandID %in% c("OAK_GROW")) %>%
-    mutate(StandID = substr(StandID, 5, nchar(StandID)))
-  
-  write.csv(cleancarb, "output/clean_fvsoutput_mbb.csv", row.names=FALSE)
-  
-  png(paste0("figures/totalcarbon_overtime_mbb.png"), 
-      width=7, height=5, unit="in", res=200)
-  ggplot(cleancarb, aes(y=Total_Stand_Carbon, x=Year, col = StandID, fill=StandID)) + 
-    geom_smooth(method="loess", 
-                aes(ymax = after_stat(y) + 3,
-                    ymin = after_stat(y) - 3)) + 
-    scale_color_viridis(discrete = TRUE, name="Practice") +
-    scale_fill_viridis(discrete = TRUE, name = "Practice") +
-    theme_bw() + xlab("") + ylab("Total Mt CO2 per acre")
-  dev.off()
-  
-  
-  png(paste0("figures/carbongains_mbb.png"), 
-      width=7, height=5, unit="in", res=200)
-  ggplot(cleancarb %>% filter(StandID != "BAU", time <= 20) %>% 
-           group_by(StandID) %>%
-           mutate(StandID = ifelse(StandID == "GROW", "Extended Rotation", "25% allowable cut")) %>%
-           summarize(meanc = mean(delta, na.rm=TRUE),
-                     sec = sd(delta, na.rm=TRUE)/sqrt(length(delta))), 
-         aes(y=meanc, x=StandID, col = StandID, fill=StandID)) + 
-    geom_col() + geom_errorbar(aes(ymin = meanc - sec, ymax = meanc + sec)) +
-    scale_color_d3(name="Practice", palette = "category20b") +
-    scale_fill_d3(name = "Practice", palette = "category20b") +
-    theme_bw() + xlab("") + ylab("Total Mt CO2 per acre") +
-    theme(legend.position = "none") +
-    scale_x_discrete(guide = guide_axis(angle=45)) +
-    geom_text(aes(label = round(meanc, digits=2)), y=0.08, col="white") 
-  dev.off()
   
 }
 
-
-
-
-
+if(useoak == TRUE){
+  
+  png("figures/carbongains_oak.png", 
+      width=7, height=5, unit="in", res=200)
+  ggplot(cleancarb %>% 
+           pivot_longer(cols = c(delta.oak.gmf, delta.oak.grow), names_to = "StandID", values_to = "delta") %>%
+           group_by(StandID) %>% #, ecosub
+           mutate(StandID = ifelse(StandID == "delta.oak.grow", "Extended Rotation", "25% allowable cut")) %>%
+           summarize(meanc = mean(delta, na.rm=TRUE),
+                     sec = sd(delta, na.rm=TRUE)/sqrt(length(delta))), 
+         aes(y=meanc, x=StandID, col = StandID, fill=StandID)) + 
+    geom_col() + geom_errorbar(aes(ymin = meanc - sec, ymax = meanc + sec)) +
+    scale_color_d3(name="Practice", palette = "category20b") +
+    scale_fill_d3(name = "Practice", palette = "category20b") +
+    theme_bw() + xlab("") + ylab("Total Mt CO2 per acre") +
+    theme(legend.position = "none") + #facet_wrap(~ecosub) +
+    scale_x_discrete(guide = guide_axis(angle=45)) +
+    geom_text(aes(label = round(meanc, digits=2)), y=0.03, col="white") 
+  dev.off()
+  
+}else if(useoak == FALSE) {
+  
+  png("figures/carbongains_mbb.png", 
+      width=7, height=5, unit="in", res=200)
+  ggplot(cleancarb %>% 
+           pivot_longer(cols = c(delta.mbb.gmf, delta.mbb.grow), names_to = "StandID", values_to = "delta") %>%
+           group_by(StandID) %>% #, ecosub
+           mutate(StandID = ifelse(StandID == "delta.mbb.grow", "Extended Rotation", "25% allowable cut")) %>%
+           summarize(meanc = mean(delta, na.rm=TRUE),
+                     sec = sd(delta, na.rm=TRUE)/sqrt(length(delta))), 
+         aes(y=meanc, x=StandID, col = StandID, fill=StandID)) + 
+    geom_col() + geom_errorbar(aes(ymin = meanc - sec, ymax = meanc + sec)) +
+    scale_color_d3(name="Practice", palette = "category20b") +
+    scale_fill_d3(name = "Practice", palette = "category20b") +
+    theme_bw() + xlab("") + ylab("Total Mt CO2 per acre") +
+    theme(legend.position = "none") + #facet_wrap(~ecosub) +
+    scale_x_discrete(guide = guide_axis(angle=45)) +
+    geom_text(aes(label = round(meanc, digits=2)), y=0.08, col="white") 
+  dev.off()
+}

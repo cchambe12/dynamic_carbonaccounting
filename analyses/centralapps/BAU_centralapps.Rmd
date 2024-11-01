@@ -15,7 +15,7 @@ output:
 
 ## Selecting FIA data
 
-For initial exploration of the data, we will first get FIA plots from **MD, OH, PA, WV**. We are downloading data directly from DataMart for most up to date information. Please modify the above states as necessary. We are then subsetting to ecosections **211, 221, 222, 223, 232, M221**. Again, please modify as necessary.  
+For initial exploration of the data, we will first get FIA plots from **MD, OH, PA, WV**. We are downloading data directly from DataMart for most up to date information. Please modify the above states as necessary. We are then subsetting to ecosections **211, 221, 222, M221**. Again, please modify as necessary.  
 
 To clean the data, we are only selecting FIA data that was measured in 1997 or later, when annualized data began. Finally, we are selecting plots that:
 
@@ -44,6 +44,7 @@ library(tidyr)
 library(gridExtra)
 library(kableExtra)
 library(rFIA)
+library(sf)
 library(sjPlot)
 library(sjlabelled)
 library(sjmisc)
@@ -59,7 +60,7 @@ fullstatelist <- c("Maryland", "Ohio", "Pennslyvania", "West Virginia") #**ENTER
 region <- "centralapps"  #**ENTER REGION FOLDER NAME HERE**
 
 if(use.ecosections==TRUE){
-ecosubstokeep <- c("211", "221", "222", "223", "232", "M221")  #**ENTER ECOSECTIONS HERE**
+ecosubstokeep <- c("211", "221", "222", "M221")  #**ENTER ECOSECTIONS HERE**
 }
 
 
@@ -89,6 +90,17 @@ statedf <- data.frame(stateabbr=states, State=fullstatelist)
 fips <- read.csv("../input/fips.csv")
 fips$statecd <- as.numeric(substr(fips$FIPS, 1, nchar(fips$FIPS)-3))
 fips$countycd <- as.numeric(substr(fips$FIPS, nchar(fips$FIPS)-2, nchar(fips$FIPS)))
+
+## Prepare Forisk Dataset to get estimated # of mills in county
+forisk <- st_read("~/OneDrive - The Nature Conservancy/FORISK/2024_Q1_Forisk_North_American_Ind_Cap_DB_Shape/Forisk_NA_FI_Capacity_DB_2024_Q1.shp") %>%
+  filter(State_Prov %in% states, Status == "Open") %>%
+  rename(Name = County, State = State_Prov) %>%
+  group_by(State, Name) %>%
+  summarize(nummills = n()) %>%
+  st_drop_geometry()
+  
+fips <- left_join(fips, forisk) %>%
+  mutate(nummills = ifelse(is.na(nummills), 0, nummills))
 
 
 ```
@@ -428,7 +440,14 @@ dat_initial <- dat_initial %>%
                                       ifelse(!is.na(volbfgrs.ac.prev), volbfgrs.ac.prev,
                                              volbfgrs.ac))))
 
+getmills <- left_join(fips, dat_initial %>% 
+                        select(statecd, countycd, unitcd) %>% distinct()) %>%
+  group_by(statecd, unitcd) %>%
+  mutate(nummills = sum(nummills, na.rm = TRUE)) %>%
+  ungroup()
+
 datclean <- dat_initial %>%
+  left_join(getmills) %>%
   filter(forestname %in% c(forestname1, forestname2),
          !is.na(ecosub),
          kindcd == 2,
@@ -546,27 +565,30 @@ invisible(dev.off())
 
 multharv <- datclean %>% 
   filter(numharvs>1) %>%
-  group_by(forestname) %>% 
+  group_by(forestname, ecosub) %>% 
   summarize(`Mult harvests` = n()) %>%
   rename(`Forest Type` = forestname) %>%
+  rename(`Ecoprovince` = ecosub) %>%
     ungroup() %>%
-  select(`Forest Type`, `Mult harvests`) 
+  select(`Forest Type`, `Ecoprovince`, `Mult harvests`) 
 
 
 harvtable <- datclean %>% 
   filter(harvest==1) %>%
-  group_by(forestname) %>% 
+  group_by(forestname, ecosub) %>% 
   summarize(`# harvested`= n()) %>%
   rename(`Forest Type` = forestname) %>%
+  rename(`Ecoprovince` = ecosub) %>%
     ungroup() %>%
-  select(`Forest Type`, `# harvested`) 
+  select(`Forest Type`,`Ecoprovince`, `# harvested`) 
 
 #checking out # FIA plots by forest type
-grid.arrange(datclean %>% group_by(forestname) %>%  
+grid.arrange(datclean %>% group_by(forestname, ecosub) %>%  
   summarize(`# FIA plots`=n()) %>%
   rename(`Forest Type` = forestname) %>%
+    rename(`Ecoprovince` = ecosub) %>%
     ungroup() %>%
-  select(`Forest Type`,  `# FIA plots`) %>% 
+  select(`Forest Type`,`Ecoprovince`,  `# FIA plots`) %>% 
     left_join(harvtable) %>%
     left_join(multharv) %>%
   tableGrob(theme = ttheme_default(), rows = NULL))
@@ -574,11 +596,12 @@ grid.arrange(datclean %>% group_by(forestname) %>%
 png(paste0("figures/harvesttable_", region, ".png"), 
     width=8,
     height=4, units="in", res = 350 )
-grid.arrange(datclean %>% group_by(forestname) %>% 
+grid.arrange(datclean %>% group_by(forestname, ecosub) %>%  
   summarize(`# FIA plots`=n()) %>%
   rename(`Forest Type` = forestname) %>%
+    rename(`Ecoprovince` = ecosub) %>%
     ungroup() %>%
-  select(`Forest Type`,  `# FIA plots`) %>% 
+  select(`Forest Type`,`Ecoprovince`,  `# FIA plots`) %>% 
     left_join(harvtable) %>%
     left_join(multharv) %>%
   tableGrob(theme = ttheme_default(), rows = NULL))
@@ -701,7 +724,7 @@ invisible(dev.off())
 ```
 
 ## Change in BAA by forest type
-```{r, rd, echo=FALSE, message=FALSE, warning=FALSE, fig.align='center', fig.height=7 , fig.width=9}
+```{r, rd, echo=FALSE, message=FALSE, warning=FALSE, fig.align='center', fig.height=16 , fig.width=14}
 
 harv <- datclean %>%
   filter(harvest==1)
@@ -718,9 +741,9 @@ harv$baac.remv = ifelse(harv$baac.remv == harv$baac.perc.cut, harv$baac.perc.cut
 
 barmMean <- harv %>%
   filter(baac.remv > 0) %>%
-    group_by(forestname) %>%
+    group_by(forestname, ecosub) %>%
     summarise(mean = mean(baac.remv*100))
-barmMean$y <- 0.06
+barmMean$y <- 0.04
 
 
  densplot <- ggplot(harv[harv$baac.remv > 0,], aes(x = baac.remv*100, fill = forestname)) +
@@ -731,7 +754,25 @@ barmMean$y <- 0.06
   labs(x = "Harvest Intensity", y = "Proportion of plots", fill = "Forest Type", color=NULL) +
   theme_bw() +
    geom_text(data = barmMean, aes(mean, y, label = paste("Avg is", round(mean, digits=2)), col=forestname), 
-             hjust = 1.1, show.legend = FALSE) + facet_wrap(~forestname) +
+             hjust = .1, show.legend = FALSE) + facet_grid(ecosub~forestname) +
+  ggtitle("BAAC % removed by forest group - harvested plots only")
+ 
+ barmMean <- harv %>%
+  filter(baac.remv > 0) %>%
+    group_by(forestname) %>%
+    summarise(mean = mean(baac.remv*100))
+barmMean$y <- 0.04
+
+
+ densplot_overall <- ggplot(harv[harv$baac.remv > 0,], aes(x = baac.remv*100, fill = forestname)) +
+  geom_density(alpha = 0.6) +
+  scale_fill_viridis_d(option = "plasma", end = 0.8) +
+   geom_vline(data = barmMean, aes(xintercept=mean, col=forestname), linetype="dashed", show.legend = FALSE) +
+  scale_color_viridis_d(option = "plasma", end = 0.8) +
+  labs(x = "Harvest Intensity", y = "Proportion of plots", fill = "Forest Type", color=NULL) +
+  theme_bw() +
+   geom_text(data = barmMean, aes(mean, y, label = paste("Avg is", round(mean, digits=2)), col=forestname), 
+             hjust = .1, show.legend = FALSE) + facet_wrap(~forestname) +
   ggtitle("BAAC % removed by forest group - harvested plots only")
  
  
@@ -752,12 +793,12 @@ barmMean$y <- 0.06
    labs(x="Initial BAAC", y="% BAA removed", col="Harvest type", fill="Harvest type")
  
 
-grid.arrange(densplot, harvtype, ncol=1)
+grid.arrange(densplot, densplot_overall, harvtype, ncol=1)
 
 png(paste0("figures/harvesttypes_", region, ".png"), 
     width=15,
     height=10, units="in", res = 350 )
-grid.arrange(densplot, harvtype, ncol=1)
+grid.arrange(densplot_overall, ncol=1)
 invisible(dev.off())
 
 
@@ -802,7 +843,7 @@ datall_harv = datclean %>%
       speciestable <- left_join(speciestable, forestgroup)
       
       speciestable <- speciestable %>%
-        filter(forestname %in% c(forestname1, forestname2)) #"Elm / ash / cottonwood group"
+        filter(plt_cn %in% unique(datclean$plt_cn)) #"Elm / ash / cottonwood group"
       
       speciestable <- subset(speciestable, select=c(dia_bin, dia, dia.prev, tpa.custom.prev, tpa.custom,
                                                     baac, baac.prev,
@@ -812,7 +853,6 @@ datall_harv = datclean %>%
       treelist <- datclean %>%
         select(plt_cn, harvest) %>%
         right_join(speciestable)
-      write.csv(treelist, file=paste0("output/speciestable_", region, ".csv"), row.names=FALSE)
       
       speciestable <- left_join(speciestable, siteharv)
       speciestable <- speciestable[!(speciestable$dia_bin=="NA-NA"),]
@@ -829,7 +869,7 @@ datall_harv = datclean %>%
         mutate( harv = harvest == 1 & dia.prev >= 5,
                 prev = statuscd.prev == 1 & dia.prev >= 5) %>%
         group_by(plt_cn) %>%
-        summarize(across(c(harvestbins, forestname), function(x) first(na.omit(x))), 
+        summarize(across(c(harvestbins, forestname), function(x) first(na.omit(x))), #, ecosub
                   qmdharv = mean(sqrt(sum(baac[harv], na.rm=TRUE)/(0.005454 * sum(tpa.custom[harv], na.rm=TRUE))), na.rm=TRUE),
             qmd.prev = mean(sqrt(sum(baac.prev[prev], na.rm=TRUE)/(0.005454 * sum(tpa.custom.prev[prev], na.rm=TRUE))), na.rm=TRUE))
       datharv <- datharv[!is.na(datharv$qmdharv),]

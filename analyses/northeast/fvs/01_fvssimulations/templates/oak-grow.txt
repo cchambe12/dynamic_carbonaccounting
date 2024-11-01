@@ -15,7 +15,7 @@ $state
 
 ! Set time interval and number of cycles
 TimeInt          0          5
-NumCycle         9
+NumCycle         6
 
 ! Specify input data
 DataBase

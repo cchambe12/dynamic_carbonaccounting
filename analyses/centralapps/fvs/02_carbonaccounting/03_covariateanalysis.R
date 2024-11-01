@@ -16,6 +16,7 @@ library(bayesplot)
 library(sjPlot)
 library(sjlabelled)
 library(sjmisc)
+library(patchwork)
 
 ## Set working directory
 setwd("~/Documents/git/dynamic_carbonaccounting/analyses/centralapps/fvs/02_carbonaccounting/")
@@ -25,10 +26,14 @@ datafolder <- "~/Documents/git/dynamic_carbonaccounting/analyses/centralapps/fvs
 
 ## Select columns of interest for covariate analysis
 colstokeep <- c("plt_cn", "harvest", "timediff", "baac.remv", "qmdchange", "qmd.prev", "volbfgrs.ac.prev",
-                "baac.prev", "lorey_ht.prev", "desire.prev", "statecd", "unitcd")
+                "baac.prev", "lorey_ht.prev", "desire.prev", "statecd", "unitcd", "nummills")
 
 ## Are you assessing Maple / beech / birch or Oak / hickory? If Oak / Hickory then say TRUE
 useoak <- TRUE
+
+#### Set up plot themes
+color_scheme_set("red")
+theme_set(theme_sjplot())
 
 ################################################################################
 #### Step 1 - Get the FIA data from the prefeasibility scoping
@@ -43,29 +48,7 @@ if(useoak == TRUE){
 }
 
 ################################################################################
-#### Step 2 - Get outputs from the FVS cleaning and join to BAU data
-if(useoak == TRUE){
-  fvs <- read.csv("output/clean_fvsoutput_oak.csv") %>%
-      rename(plt_cn = Stand_CN)
-}else {
-  fvs <- read.csv("output/clean_fvsoutput_mbb.csv") %>%
-    rename(plt_cn = Stand_CN)
-}
-
-
-## Subset the FVS runs to get only the FIA plots of interest
-#cov <- fvs %>%
-#  filter(plt_cn %in% unique(bau$plt_cn)) %>%
-#  left_join(bau %>% select(all_of(colstokeep)))
-
-  
-#  length(unique(bau$plt_cn)) ## 
-#  length(unique(fvs$plt_cn)) ## 
-#  length(unique(cov$plt_cn)) ## 
-
-
-################################################################################
-#### Step 3 - Begin cleaning data
+#### Step 2 - Begin cleaning data
 ## z-score to get everything on the same level in case we want to model
 
 cov <- bau %>%
@@ -75,10 +58,11 @@ cov <- bau %>%
          PrevSpeciesDesireability = (desire.prev - mean(desire.prev, na.rm=TRUE)) / (sd(desire.prev, na.rm=TRUE)),
          PrevQMD = (qmd.prev - mean(qmd.prev, na.rm=TRUE)) / (sd(qmd.prev, na.rm=TRUE)),
          PrevStdAge = (stdage.prev - mean(stdage.prev, na.rm=TRUE)) / (sd(stdage.prev, na.rm=TRUE)),
+         NumMills = (nummills - mean(nummills, na.rm=TRUE)) / (sd(nummills, na.rm=TRUE)),
          unitname = paste(statecd, unitcd)) %>%
   select(plt_cn, PrevBA, baac.prev, PrevBFVol, volbfgrs.ac.prev, PrevLoreyHT, lorey_ht.prev, PrevSpeciesDesireability,
          desire.prev, PrevQMD, qmd.prev, PrevStdAge, stdage.prev, unitname, ecosub, forestname, statecd, countycd, unitcd,
-         baac.remv, harvest, qmdchange) %>%
+         baac.remv, harvest, qmdchange, NumMills, nummills) %>%
   na.omit()
 
 
@@ -102,128 +86,147 @@ ggplot(cov, aes(x=lorey_ht.prev, y=desire.prev)) + geom_point() + theme_bw()
 ggplot(cov, aes(x=lorey_ht.prev, y=qmd.prev)) + geom_point() + theme_bw() ## colinearity issues
 ggplot(cov, aes(x=lorey_ht.prev, y=stdage.prev)) + geom_point() + theme_bw()
 
-## Step 4 - Begin running brms models
-cov$totremv <- cov$harvest * cov$baac.remv
-harv.mod <- brm( totremv ~ PrevBA + PrevLoreyHT + PrevSpeciesDesireability + PrevStdAge + 
-                 (PrevBA + PrevLoreyHT + PrevSpeciesDesireability + PrevStdAge | unitname), 
+## Step 3 - Begin running brms models
+zip_prior <- c(set_prior("normal(0,1)", class = "Intercept"),
+              set_prior("normal(0,0.5)", class = "b"))
+
+hl.mod <- brm( harvest | trials(1) ~ PrevBA + PrevLoreyHT + PrevSpeciesDesireability + PrevStdAge + NumMills +
+                 (1 | unitname / ecosub), 
                cores=2, chains = 2, 
                iter = 3000, warmup = 2000,
-               prior = prior(normal(0,1), class = "b"), 
+               family = zero_inflated_binomial(link = "logit", link_zi = "logit"),
+               prior = zip_prior, 
                data=cov, control = list(adapt_delta=0.99))
 
 
 ### Rhats and ESS look great!
 
 ## Check posteriors
-color_scheme_set("red")
-ppc_dens_overlay(y = cov$totremv,
-                 yrep = posterior_predict(harv.mod, draws = 50))
+ppc_dens_overlay(y = cov$harvest,
+                 yrep = posterior_predict(hl.mod, draws = 50))
 
 
 ## Plot model output to see what variable are predictive for harvest likelihood
-theme_set(theme_sjplot())
-
-hlplot <- sjPlot::plot_model(hl.mod, vline.color = "black", 
-                             title = paste0("Harvest likelihood")) 
+sjPlot::plot_model(hl.mod, vline.color = "black", ci.style = "whisker",
+                             title = paste0("Harvest Likelihood (%)")) #+ ylim(-0.5, 0.5)
   
 
-hl.p <- mcmc_intervals(hl.mod, pars=c("b_baacz", 
-                                      "b_volbfz",
-                                      "b_qmdz",
-                                      "b_loreysz",
-                                      "b_desirez"), 
+hl.p <- mcmc_intervals(hl.mod, pars=c("b_PrevBA", 
+                                      "b_PrevLoreyHT",
+                                      "b_PrevSpeciesDesireability",
+                                      "b_PrevStdAge", "b_NumMills"), 
                        prob=0.5, prob_outer = 0.89) +
-  coord_cartesian(xlim=c(-0.15, 0.35), ylim=c(1, 5.15), clip = 'off') +
+  coord_cartesian(xlim=c(-0.75, 1.25), ylim=c(1, 5.15), clip = 'off') +
   scale_x_continuous(labels = function(x) {format(100*x, digits = 2)}) +
   geom_vline(linetype = "dotted", xintercept = 0) +
   theme_bw() +
   theme(panel.border = element_rect(colour = "black", fill=NA),
         plot.margin = unit(c(3,3,1,1), "lines")) +
-  annotate("segment", x = 0.01, xend = 0.32, y = 5.9, yend = 5.9, colour = "black", linewidth=0.2, arrow=arrow(length=unit(0.20,"cm"))) + 
-  annotate("segment", x = -.01, xend = -0.12, y = 5.9, yend = 5.9, colour = "black", linewidth=0.2, arrow=arrow(length=unit(0.20,"cm"))) + 
-  annotate("text", x = 0.18, y = 6.05, colour = "black", size=3.5, label=bquote("Increased likelihood")) + 
-  annotate("text", x = -0.06, y = 6.05, colour = "black", size=3.5, label=bquote("Decreased likelihood")) +
-  scale_y_discrete(limits=rev(c("b_baacz", 
-                                "b_volbfz",
-                                "b_qmdz",
-                                "b_loreysz",
-                                "b_desirez")), 
-                   labels=rev(c("Previous BAAC", "Previous BF Vol", "Previous QMD",
-                                "Previous Lorey's Height", 
-                                "Previous Species Desireability"))) +
+  annotate("segment", x = 0.01, xend = 1.2, y = 5.9, yend = 5.9, colour = "black", linewidth=0.2, arrow=arrow(length=unit(0.20,"cm"))) + 
+  annotate("segment", x = -.01, xend = -0.7, y = 5.9, yend = 5.9, colour = "black", linewidth=0.2, arrow=arrow(length=unit(0.20,"cm"))) + 
+  annotate("text", x = 0.6, y = 6.05, colour = "black", size=3.5, label=bquote("Increased likelihood")) + 
+  annotate("text", x = -0.35, y = 6.05, colour = "black", size=3.5, label=bquote("Decreased likelihood")) +
+  scale_y_discrete(limits=rev(c("b_PrevBA", 
+                                "b_PrevLoreyHT",
+                                "b_PrevSpeciesDesireability",
+                                "b_PrevStdAge", "b_NumMills")), 
+                   labels=rev(c("Previous BAAC", "Previous Lorey's HT", "Previous Desireability",
+                                "Previous Stand Age", "Number of Mills"))) +
   xlab("Model estimate of change in harvest likelihood (%)") 
+
+
+############################## Harvest Intensity Model ################################
+
+hi.mod <- brm( baac.remv ~ PrevBA + PrevLoreyHT + PrevSpeciesDesireability + PrevStdAge + NumMills +
+                 (1 | unitname / ecosub), 
+               cores=2, chains = 2, 
+               iter = 3000, warmup = 2000,
+               prior = zip_prior, 
+               data=harv, control = list(adapt_delta=0.99))
+
+
+### Rhats and ESS look great!
+
+## Check posteriors
+ppc_dens_overlay(y = harv$baac.remv,
+                 yrep = posterior_predict(hi.mod, draws = 50))
+
+
+## Plot model output to see what variable are predictive for harvest likelihood
+sjPlot::plot_model(hi.mod, vline.color = "black", ci.style = "whisker",
+                   title = paste0("Harvest Intensity"))
+
+
+hi.p <- mcmc_intervals(hi.mod, pars=c("b_PrevBA", 
+                                      "b_PrevLoreyHT",
+                                      "b_PrevSpeciesDesireability",
+                                      "b_PrevStdAge", "b_NumMills"), 
+                       prob=0.5, prob_outer = 0.89) +
+  coord_cartesian(xlim=c(-0.1, 0.15), ylim=c(1, 5.15), clip = 'off') +
+  scale_x_continuous(labels = function(x) {format(100*x, digits = 2)}) +
+  geom_vline(linetype = "dotted", xintercept = 0) +
+  theme_bw() +
+  theme(panel.border = element_rect(colour = "black", fill=NA),
+        plot.margin = unit(c(3,3,1,1), "lines")) +
+  annotate("segment", x = 0.001, xend = 0.14, y = 5.9, yend = 5.9, colour = "black", linewidth=0.2, arrow=arrow(length=unit(0.20,"cm"))) + 
+  annotate("segment", x = -.001, xend = -0.09, y = 5.9, yend = 5.9, colour = "black", linewidth=0.2, arrow=arrow(length=unit(0.20,"cm"))) + 
+  annotate("text", x = 0.07, y = 6.05, colour = "black", size=3.5, label=bquote("Increased intensity")) + 
+  annotate("text", x = -0.045, y = 6.05, colour = "black", size=3.5, label=bquote("Decreased intensity")) +
+  scale_y_discrete(limits=rev(c("b_PrevBA", 
+                                "b_PrevLoreyHT",
+                                "b_PrevSpeciesDesireability",
+                                "b_PrevStdAge", "b_NumMills")), 
+                   labels=rev(c("Previous BAAC", "Previous Lorey's HT", "Previous Desireability",
+                                "Previous Stand Age", "Number of Mills"))) +
+  xlab("Model estimate of change in % BA removed in harvest") 
 
 ############################## QMD Change Model ################################
 ## Run the model
-qmd.mod <- brm( qmdchange ~ baacz + volbfz + loreysz + desirez + qmdz +
-                 (1 | unitname),
-               chains=2, data=harv, control = list(adapt_delta=0.99))
+qmd.mod <- brm( qmdchange ~ PrevBA + PrevLoreyHT + PrevSpeciesDesireability + PrevStdAge + NumMills +
+                   (1 | unitname / ecosub), 
+                 cores=2, chains = 2, 
+                 iter = 3000, warmup = 2000,
+                 data=harv, control = list(adapt_delta=0.99))
+
+### Rhats and ESS look great!
+
+## Check posteriors
+ppc_dens_overlay(y = harv$qmdchange,
+                 yrep = posterior_predict(qmd.mod, draws = 50))
 
 
 ## Plot model output to see what variable are predictive for initial carbon
-qmd.p <- mcmc_intervals(qmd.mod, pars=c("b_baacz", 
-                                      "b_volbfz",
-                                      "b_qmdz",
-                                      "b_loreysz",
-                                      "b_desirez"), 
-                       prob=0.5, prob_outer = 0.89) +
-  coord_cartesian(xlim=c(-1.5, 1), ylim=c(1, 5.15), clip = 'off') +
+sjPlot::plot_model(qmd.mod, vline.color = "black", ci.style = "whisker",
+                               title = paste0("Change in QMD")) 
+
+
+qmd.p <- mcmc_intervals(qmd.mod, pars=c("b_PrevBA", 
+                                          "b_PrevLoreyHT",
+                                          "b_PrevSpeciesDesireability",
+                                          "b_PrevStdAge", "b_NumMills"), 
+                         prob=0.5, prob_outer = 0.89) +
+  coord_cartesian(xlim=c(-1, 1), ylim=c(1, 5.15), clip = 'off') +
   scale_x_continuous(labels = function(x) {format(x, digits = 2)}) +
   geom_vline(linetype = "dotted", xintercept = 0) +
   theme_bw() +
   theme(panel.border = element_rect(colour = "black", fill=NA),
         plot.margin = unit(c(3,3,1,1), "lines")) +
-  annotate("segment", x = 0.01, xend = 0.9, y = 5.9, yend = 5.9, colour = "black", linewidth=0.2, arrow=arrow(length=unit(0.20,"cm"))) + 
-  annotate("segment", x = -.01, xend = -1.4, y = 5.9, yend = 5.9, colour = "black", linewidth=0.2, arrow=arrow(length=unit(0.20,"cm"))) + 
-  annotate("text", x = 0.5, y = 6.05, colour = "black", size=3.5, label=bquote("Increased intensity")) + 
-  annotate("text", x = -0.8, y = 6.05, colour = "black", size=3.5, label=bquote("Decreased intensity")) +
-  scale_y_discrete(limits=rev(c("b_baacz", 
-                                "b_volbfz",
-                                "b_qmdz",
-                                "b_loreysz",
-                                "b_desirez")), 
-                   labels=rev(c("Previous BAAC", "Previous BF Vol", "Previous QMD",
-                                "Previous Lorey's Height", 
-                                "Previous Species Desireability"))) +
-  xlab("Model estimate of change in harvest intensity (% BAAC removed)") 
-
-############################## Harvest Intensity Model ################################
-hi.mod <- brm( baac.remv ~ baacz + volbfz + loreysz + desirez + qmdz +
-                 (1 | unitname),
-               chains=2, data=harv, control = list(adapt_delta=0.99))
-
-
-## Plot model output to see what variable are predictive for initial carbon
-hi.p <- mcmc_intervals(hi.mod, pars=c("b_baacz", 
-                                      "b_volbfz",
-                                      "b_qmdz",
-                                      "b_loreysz",
-                                      "b_desirez"), 
-                       prob=0.5, prob_outer = 0.89) +
-  coord_cartesian(xlim=c(-0.15, 0.35), ylim=c(1, 5.15), clip = 'off') +
-  scale_x_continuous(labels = function(x) {format(100*x, digits = 2)}) +
-  geom_vline(linetype = "dotted", xintercept = 0) +
-  theme_bw() +
-  theme(panel.border = element_rect(colour = "black", fill=NA),
-        plot.margin = unit(c(3,3,1,1), "lines")) +
-  annotate("segment", x = 0.01, xend = 0.32, y = 5.9, yend = 5.9, colour = "black", linewidth=0.2, arrow=arrow(length=unit(0.20,"cm"))) + 
-  annotate("segment", x = -.01, xend = -0.12, y = 5.9, yend = 5.9, colour = "black", linewidth=0.2, arrow=arrow(length=unit(0.20,"cm"))) + 
-  annotate("text", x = 0.18, y = 6.05, colour = "black", size=3.5, label=bquote("Increased likelihood")) + 
-  annotate("text", x = -0.06, y = 6.05, colour = "black", size=3.5, label=bquote("Decreased likelihood")) +
-  scale_y_discrete(limits=rev(c("b_baacz", 
-                                "b_volbfz",
-                                "b_qmdz",
-                                "b_loreysz",
-                                "b_desirez")), 
-                   labels=rev(c("Previous BAAC", "Previous BF Vol", "Previous QMD",
-                                "Previous Lorey's Height", 
-                                "Previous Species Desireability"))) +
-  xlab("Model estimate of change in harvest likelihood (%)") 
+  annotate("segment", x = 0.1, xend = 0.9, y = 5.9, yend = 5.9, colour = "black", linewidth=0.2, arrow=arrow(length=unit(0.20,"cm"))) + 
+  annotate("segment", x = -.1, xend = -0.9, y = 5.9, yend = 5.9, colour = "black", linewidth=0.2, arrow=arrow(length=unit(0.20,"cm"))) + 
+  annotate("text", x = 0.5, y = 6.05, colour = "black", size=3.5, label=bquote("Thin from above")) + 
+  annotate("text", x = -0.5, y = 6.05, colour = "black", size=3.5, label=bquote("Thin from below")) +
+  scale_y_discrete(limits=rev(c("b_PrevBA", 
+                                "b_PrevLoreyHT",
+                                "b_PrevSpeciesDesireability",
+                                "b_PrevStdAge", "b_NumMills")), 
+                   labels=rev(c("Previous BAAC", "Previous Lorey's HT", "Previous Desireability",
+                                "Previous Stand Age", "Number of Mills"))) +
+  xlab("Model estimate of change in QMD") 
 
 
 ################################################################################
 ################################################################################
-### Step 5 - Save the outputs
+### Step 4 - Save the outputs
 png(paste0("figures/modeloutput_covariateanalysis_", i,".png"), 
     width=18, height=6, unit="in", res=200)
 grid.arrange(hl.p, hi.p, qmd.p, ncol=3)
@@ -235,79 +238,152 @@ dev.off()
 
 if(useoak == TRUE){
   
-  ### Potentially a signal with species... 
-  hist(cov$baac.prev)
-  hist(harv$baac.prev)
+  ### Build figures for manuscript
+  #### Assess HL
+  cov$hl <- as.data.frame(predict(hl.mod))$Estimate
+  ggplot(cov, aes(x=lorey_ht.prev, y=hl)) + geom_point() +
+    geom_smooth(method="lm", formula=y~poly(x,2))
+  mean(cov$hl[cov$lorey_ht.prev>=70]) ### This is the key winner
+  mean(cov$hl)
   
-  hist(cov$lorey_ht.prev)
-  hist(harv$lorey_ht.prev)
+  ggplot(cov, aes(x=baac.prev, y=hl)) + geom_point() +
+    geom_smooth(method="lm", formula=y~poly(x,2))
+  mean(cov$hl[cov$baac.prev>=100])
+  mean(cov$hl)
   
-  hist(cov$volbfgrs.ac.prev)
-  hist(harv$volbfgrs.ac.prev)
+  #### Assess HI
+  harv$hi <- as.data.frame(predict(hi.mod))$Estimate
+  ggplot(harv, aes(x=lorey_ht.prev, y=hi)) + geom_point() +
+    geom_smooth(method="lm", formula=y~poly(x,2))
+  mean(harv$hi[harv$lorey_ht.prev>=70]) ### This is the key winner
+  mean(harv$hi)
   
+  ggplot(harv, aes(x=baac.prev, y=hi)) + geom_point() +
+    geom_smooth(method="lm", formula=y~poly(x,2))
+  mean(harv$hi[harv$baac.prev>=100])
+  mean(harv$hi)
+  
+  #### Assess QMD
+  harv$qmdest <- as.data.frame(predict(qmd.mod))$Estimate
+  ggplot(harv, aes(x=lorey_ht.prev, y=qmdest)) + geom_point() +
+    geom_smooth(method="lm", formula=y~poly(x,2))
+  mean(harv$qmdest[harv$lorey_ht.prev>=70])
+  mean(harv$qmdest)
+  
+  ggplot(harv, aes(x=baac.prev, y=qmdest)) + geom_point() +
+    geom_smooth(method="lm", formula=y~poly(x,2))
+  mean(harv$qmdest[harv$baac.prev>=100]) ### slightly less negative
+  mean(harv$qmdest)
   
   
   covsub <- cov %>%
-    filter(baac.prev >= 90 & lorey_ht.prev >= 60 & volbfgrs.ac.prev >= 5000)
+    filter(lorey_ht.prev >= 70, nummills > 0)
   
-  harvsub <- covsub %>%
-    filter(harvest == 1)
+  harvsub <- harv %>%
+    filter(harvest == 1, lorey_ht.prev >= 70, nummills > 0)
   
-  mean(harvsub$baac.remv, na.rm=TRUE)
-  mean(harv$baac.remv, na.rm=TRUE)
+  allremv <- ggplot(harv, aes(y=hi*100, x=lorey_ht.prev)) + 
+    geom_smooth(method="lm", col="red", linetype="dashed") + geom_point(alpha=0.3) +
+    ggtitle("Harvest Intensity (% BA removed)") +
+    xlab("Previous Lorey's Height (ft)") + ylab("% BA removed") + coord_cartesian(ylim=c(0,100)) +
+    geom_text(aes(label = paste0("mean = ",round(mean(hi*100), digits=0), "%")), y=90, x=80, col="red4")
   
-  ### Build the figures for output
+  subremv <- ggplot(harvsub, aes(y=hi*100, x=lorey_ht.prev)) + 
+    geom_smooth(method="lm", col="red", linetype="dashed") + geom_point(alpha=0.3) +
+    xlab("Previous Lorey's Height (ft)") + ylab("% BA removed") + coord_cartesian(ylim=c(0,100))+
+    geom_text(aes(label = paste0("mean = ",round(mean(hi*100), digits=0), "%")), y=90, x=90, col="red4")
   
+  allharv <- ggplot(cov, aes(y=hl*100, x=lorey_ht.prev)) + 
+    ggtitle("Harvest Likelihood (%)") +
+    geom_smooth(method="lm", col="red", linetype="dashed") + geom_point(alpha=0.3) +
+    xlab("Previous Lorey's Height (ft)") + ylab("% harvest likelihood") + coord_cartesian(ylim=c(0,100))+
+    geom_text(aes(label = paste0("mean = ",round(mean(hl*100), digits=0), "%")), y=90, x=80, col="red4")
   
+  subharv <- ggplot(covsub, aes(y=hl*100, x=lorey_ht.prev)) + 
+    geom_smooth(method="lm", col="red", linetype="dashed") + geom_point(alpha=0.3) +
+    xlab("Previous Lorey's Height (ft)") + ylab("% harvest likelihood") + coord_cartesian(ylim=c(0,100))+
+    geom_text(aes(label = paste0("mean = ",round(mean(hl*100), digits=0), "%")), y=90, x=90, col="red4")
+
   
-  
-  ggplot(cov, aes(x=baac.prev, y=baac.remv)) + geom_point() +
-    geom_smooth()
+  ### Save for draft
+  png("figures/eligibility_thresholds_oak.png", res=200, width=8, height=6, unit="in")
+  allharv + subharv + allremv + subremv +
+  plot_layout(ncol = 2, nrow = 2, guides = "collect")
+  dev.off()
   
 } else {
   
-  ### Looks like there might be a relationship with Lorey's Height
-  hist(cov$qmd.prev) ## Let's try 60 as minimum
-  hist(harv$qmd.prev)
+  ### Build figures for manuscript
+  #### Assess HL
+  cov$hl <- as.data.frame(predict(hl.mod))$Estimate
+  ggplot(cov, aes(x=lorey_ht.prev, y=hl)) + geom_point() +
+    geom_smooth(method="lm", formula=y~poly(x,2))
+  mean(cov$hl[cov$lorey_ht.prev>=70]) ### This is the key winner
+  mean(cov$hl)
   
-  mean(harv$baac.remv, na.rm=TRUE) ## Average is 25% removal... 
+  ggplot(cov, aes(x=baac.prev, y=hl)) + geom_point() +
+    geom_smooth(method="lm", formula=y~poly(x,2))
+  mean(cov$hl[cov$baac.prev>=100])
+  mean(cov$hl)
   
-  mean(harv$baac.remv); sd(harv$baac.remv)/sqrt(length(harv$baac.remv))
-  mean(harv$baac.remv[harv$qmd.prev>=8]); sd(harv$baac.remv[harv$qmd.prev>=8])/sqrt(length(harv$baac.remv[harv$qmd.prev>=8]))
-  mean(harv$baac.remv[harv$qmd.prev>=10]); sd(harv$baac.remv[harv$qmd.prev>=10])/sqrt(length(harv$baac.remv[harv$qmd.prev>=10]))
-  mean(harv$baac.remv[harv$qmd.prev>=12]); sd(harv$baac.remv[harv$qmd.prev>=12])/sqrt(length(harv$baac.remv[harv$qmd.prev>=12]))
+  #### Assess HI
+  harv$hi <- as.data.frame(predict(hi.mod))$Estimate
+  ggplot(harv, aes(x=lorey_ht.prev, y=hi)) + geom_point() +
+    geom_smooth(method="lm", formula=y~poly(x,2))
+  mean(harv$hi[harv$lorey_ht.prev>=70]) ### This is the key winner
+  mean(harv$hi)
   
-  ggplot(harv, aes(x=qmd.prev, y=baac.remv*100)) + 
-    geom_point() + geom_smooth(method="lm") +
-    theme_bw() + xlab("Previous QMD") + ylab("Harvest intensity (%)")
+  ggplot(harv, aes(x=baac.prev, y=hi)) + geom_point() +
+    geom_smooth(method="lm", formula=y~poly(x,2))
+  mean(harv$hi[harv$baac.prev>=100])
+  mean(harv$hi)
   
-  mean(cov$delta[cov$StandID=="GMF"], na.rm=TRUE); sd(cov$delta[cov$StandID=="GMF"], na.rm=TRUE)
-  mean(cov$delta[cov$StandID=="GROW"]); sd(cov$delta[cov$StandID=="GROW"])
+  #### Assess QMD
+  harv$qmdest <- as.data.frame(predict(qmd.mod))$Estimate
+  ggplot(harv, aes(x=lorey_ht.prev, y=qmdest)) + geom_point() +
+    geom_smooth(method="lm", formula=y~poly(x,2))
+  mean(harv$qmdest[harv$lorey_ht.prev>=70])
+  mean(harv$qmdest)
+  
+  ggplot(harv, aes(x=baac.prev, y=qmdest)) + geom_point() +
+    geom_smooth(method="lm", formula=y~poly(x,2))
+  mean(harv$qmdest[harv$baac.prev>=100]) ### slightly less negative
+  mean(harv$qmdest)
+  
   
   covsub <- cov %>%
-    filter(lorey_ht.prev >= 60)
+    filter(lorey_ht.prev >= 70, nummills > 0)
   
-  mean(covsub$baac.remv[covsub$harvest==1], na.rm=TRUE)
+  harvsub <- harv %>%
+    filter(harvest == 1, lorey_ht.prev >= 70, nummills >0)
   
-  mean(covsub$delta[covsub$StandID=="GMF"]); sd(covsub$delta[covsub$StandID=="GMF"])
+  allremv <- ggplot(harv, aes(y=hi*100, x=lorey_ht.prev)) + 
+    geom_smooth(method="lm", col="red", linetype="dashed") + geom_point(alpha=0.3) +
+    ggtitle("Harvest Intensity (% BA removed)") +
+    xlab("Previous Lorey's Height (ft)") + ylab("% BA removed") + coord_cartesian(ylim=c(0,100)) +
+    geom_text(aes(label = paste0("mean = ",round(mean(hi*100), digits=0), "%")), y=90, x=80, col="red4")
   
-  ### Okay actually gains decrease a bit then... 
+  subremv <- ggplot(harvsub, aes(y=hi*100, x=lorey_ht.prev)) + 
+    geom_smooth(method="lm", col="red", linetype="dashed") + geom_point(alpha=0.3) +
+    xlab("Previous Lorey's Height (ft)") + ylab("% BA removed") + coord_cartesian(ylim=c(0,100))+
+    geom_text(aes(label = paste0("mean = ",round(mean(hi*100), digits=0), "%")), y=90, x=90, col="red4")
+  
+  allharv <- ggplot(cov, aes(y=hl*100, x=lorey_ht.prev)) + 
+    ggtitle("Harvest Likelihood (%)") +
+    geom_smooth(method="lm", col="red", linetype="dashed") + geom_point(alpha=0.3) +
+    xlab("Previous Lorey's Height (ft)") + ylab("% harvest likelihood") + coord_cartesian(ylim=c(0,100))+
+    geom_text(aes(label = paste0("mean = ",round(mean(hl*100), digits=0), "%")), y=90, x=80, col="red4")
+  
+  subharv <- ggplot(covsub, aes(y=hl*100, x=lorey_ht.prev)) + 
+    geom_smooth(method="lm", col="red", linetype="dashed") + geom_point(alpha=0.3) +
+    xlab("Previous Lorey's Height (ft)") + ylab("% harvest likelihood") + coord_cartesian(ylim=c(0,100))+
+    geom_text(aes(label = paste0("mean = ",round(mean(hl*100), digits=0), "%")), y=90, x=90, col="red4")
   
   
-  png(paste0("figures/eligible_carbongains_mbb.png"), 
-      width=7, height=5, unit="in", res=200)
-  ggplot(covsub %>% filter(StandID != "BAU", time <= 20) %>% 
-           group_by(StandID) %>%
-           mutate(StandID = ifelse(StandID == "GROW", "GOF", "GMF")) %>%
-           summarize(meanc = mean(delta, na.rm=TRUE),
-                     sec = sd(delta, na.rm=TRUE)/4), 
-         aes(y=meanc, x=StandID, col = StandID, fill=StandID)) + 
-    geom_col() + geom_errorbar(aes(ymin = meanc - sec, ymax = meanc + sec)) +
-    scale_color_d3(name="Practice", palette = "category20b") +
-    scale_fill_d3(name = "Practice", palette = "category20b") +
-    theme_bw() + xlab("") + ylab("Total Mt CO2 per acre") +
-    theme(legend.position = "none") +
-    geom_text(aes(label = round(meanc, digits=2)), y=0.08, col="white") 
+  ### Save for draft
+  png("figures/eligibility_thresholds_mbb.png", res=200, width=8, height=6, unit="in")
+  allharv + subharv + allremv + subremv +
+    plot_layout(ncol = 2, nrow = 2, guides = "collect")
   dev.off()
   
 }

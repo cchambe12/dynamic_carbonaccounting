@@ -65,7 +65,6 @@ SUMMARY
 COMPUTDB
 End
 
-
 ! Compute target basal area each cycle
 COMPUTE           0 
 BAtarget = 0.48*BBA
@@ -109,7 +108,7 @@ IF
 BBA GE 0 AND YSH GE 25
 THEN
 ! The BA target is not always met due to the lower limit on the eligible diameter range
-ThinDBH         0    PARMS(5, 999, 1, All, 0, BAtarget) 
+ThinDBH         0    PARMS(0, 999, 1, All, 0, BAtarget) 
 ENDIF
 
 ! Process the simulation
