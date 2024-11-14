@@ -98,6 +98,7 @@ hl.mod <- brm( harvest | trials(1) ~ PrevBA + PrevLoreyHT + PrevSpeciesDesireabi
                prior = zip_prior, 
                data=cov, control = list(adapt_delta=0.99))
 
+save(hl.mod, file="~/Dropbox/carbonaccounting/centralapps/models/hlmod.Rdata")
 
 ### Rhats and ESS look great!
 
@@ -144,6 +145,7 @@ hi.mod <- brm( baac.remv ~ PrevBA + PrevLoreyHT + PrevSpeciesDesireability + Pre
                prior = zip_prior, 
                data=harv, control = list(adapt_delta=0.99))
 
+save(hi.mod, file="~/Dropbox/carbonaccounting/centralapps/models/himod.Rdata")
 
 ### Rhats and ESS look great!
 
@@ -187,6 +189,8 @@ qmd.mod <- brm( qmdchange ~ PrevBA + PrevLoreyHT + PrevSpeciesDesireability + Pr
                  cores=2, chains = 2, 
                  iter = 3000, warmup = 2000,
                  data=harv, control = list(adapt_delta=0.99))
+
+save(qmd.mod, file="~/Dropbox/carbonaccounting/centralapps/models/qmdmod.Rdata")
 
 ### Rhats and ESS look great!
 
@@ -275,7 +279,7 @@ if(useoak == TRUE){
   mean(harv$qmdest[harv$baac.prev>=100]) ### slightly less negative
   mean(harv$qmdest)
   
-  
+  #### Remove county clusters if necessary
   covsub <- cov %>%
     filter(lorey_ht.prev >= 70, nummills > 0)
   

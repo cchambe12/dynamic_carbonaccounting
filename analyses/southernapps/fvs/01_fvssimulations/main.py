@@ -17,9 +17,9 @@ oak_states = [OAK(state='al'), OAK(state='ky'),
               OAK(state='nc'), OAK(state='sc'), OAK(state='tn'),OAK(state='va')]
 
 # Build list of mbb scenario keyword files to simulate
-oak_kws = [KeywordFile('oak-grow'), KeywordFile('oak-grow-cov'), 
-           KeywordFile('oak-bau'), KeywordFile('oak-bau-cov'),
-           KeywordFile('oak-cut25'), KeywordFile('oak-cut25-cov')]
+oak_kws = [KeywordFile('oak-grow'),
+           KeywordFile('oak-bau'), 
+           KeywordFile('oak-cut25')]
 
 # Run FVS on each plot for each scenario in each state
 for state in tqdm(oak_states, desc='states', position=0, leave=False):

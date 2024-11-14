@@ -186,8 +186,8 @@ if(useoak == TRUE){
   
   cleancarb <- w.carb %>%
     #Calculate scenarios
-    mutate(calc.oak.gmf = (OAK_GMF*oakrate + OAK_GROW*(1-oakrate))*(44/12),
-           calc.oak.bau = (OAK_BAU*oakrate + OAK_GROW*(1-oakrate))*(44/12),
+    mutate(calc.oak.gmf = (OAK_GMF*oakrate)*(44/12), # + OAK_GROW*(1-oakrate)
+           calc.oak.bau = (OAK_BAU*oakrate)*(44/12), # + OAK_GROW*(1-oakrate)
            calc.oak.grow = OAK_GROW*(44/12),
            #Calculate deltas
            delta.oak.gmf = calc.oak.gmf - calc.oak.bau,
@@ -198,14 +198,16 @@ if(useoak == TRUE){
   mean(cleancarb$delta.oak.gmf)
   mean(cleancarb$delta.oak.grow)
   
+  write.csv(cleancarb, "output/clean_fvsoutput_oak.csv", row.names=FALSE)
+  
   
 }else if(useoak == FALSE) {
   
   cleancarb <- w.carb %>%
     #filter(time == timestamp) %>%
     #Calculate scenarios
-    mutate(calc.mbb.gmf = (MBB_GMF*mbbrate + MBB_GROW*(1-mbbrate))*(44/12),
-           calc.mbb.bau = (MBB_BAU*mbbrate + MBB_GROW*(1-mbbrate))*(44/12),
+    mutate(calc.mbb.gmf = (MBB_GMF*mbbrate)*(44/12), # + MBB_GROW*(1-mbbrate)
+           calc.mbb.bau = (MBB_BAU*mbbrate)*(44/12), #+ MBB_GROW*(1-mbbrate)
            calc.mbb.grow = MBB_GROW*(44/12),
            #Calculate deltas
            delta.mbb.gmf = calc.mbb.gmf - calc.mbb.bau,
@@ -216,6 +218,7 @@ if(useoak == TRUE){
   mean(cleancarb$delta.mbb.gmf)
   mean(cleancarb$delta.mbb.grow)
   
+  write.csv(cleancarb, "output/clean_fvsoutput_mbb.csv", row.names=FALSE)
   
 }
 

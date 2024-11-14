@@ -70,42 +70,10 @@ COMPUTE           0
 BAtarget = 0.62*BBA
 END
 
-! In the first cycle set YSH to allow harvest at year xx
-COMPUTE           1
-YSH = 20 - $year
-END
-
-! Conditionally reset YSH to zero if a harvest occurred
-IF
-CUT EQ 1.0
-THEN
-COMPUTE
-YSH = 0
-END
-ENDIF
-
-! Conditionally increment YSH by cycle length if no harvest occurred
-IF
-CUT EQ 0.0
-THEN
-COMPUTE
-YSH = YSH + 5
-END
-ENDIF
-
-!Exten:base Title:Adjust mortality rates
-FixMort         0        PARMS(WA, 1.0, 0.0, 999.0, 0, 2)
-!Exten:base Title:Adjust mortality rates
-FixMort         0        PARMS(BA, 1.0, 0.0, 999.0, 0, 2) 
-!Exten:base Title:Adjust mortality rates
-FixMort         0        PARMS(GA, 1.0, 0.0, 999.0, 0, 2)
-!Exten:base Title:Adjust mortality rates
-FixMort         0        PARMS(AB, 0.85, 0.0, 999.0, 0, 2)
-
-! Conditionally thin from above if BA target is met and xx years has past
+! Conditionally thin throughout if BA target is met 
 ! since previous harvest during contract
 IF
-BBA GE 0 AND YSH GE 25
+BBA GE 50 
 THEN
 ! The BA target is not always met due to the lower limit on the eligible diameter range
 ThinDBH         0    PARMS(0, 999, 1, All, 0, BAtarget) 

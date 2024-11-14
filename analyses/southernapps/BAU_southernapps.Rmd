@@ -307,6 +307,9 @@ dat_grouped <- treeplot %>%
                 standall = statuscd == 1 & statuscd.prev == 1,
                 prev = dia.prev >= 5 &  statuscd.prev == 1,
                 stand = statuscd.prev == 1 & statuscd == 1 & dia.prev >= 5) %>%
+  group_by(plt_cn, spcd) %>%
+  mutate(numspecies = n()) %>%
+  ungroup() %>%
   group_by(plt_cn) %>%
   summarize(across(c(ecosub, ecosubcd, statecd, countycd, plot, unitcd, lat, lon, fortypcd, owngrpcd, stdorgcd, invyr, remper, measdate, prev.plt.cn, prev.prev.plt.cn, prev.prev.prev.plt.cn, dstrbcd1, 
                      dstrbcd2, dstrbcd3, stdage, siteclcd, spgrpcd, kindcd, designcd, qa_status,
@@ -332,7 +335,9 @@ dat_grouped <- treeplot %>%
             ## Stand-level Lorey's Height
             lorey_ht = sum(lorey_ht_part, na.rm = TRUE) / sum(ba_part_lorey, na.rm=TRUE),
             ## Stand-level QMD of merchantable trees
-            qmd = sqrt(baac/(0.005454 * tpasite))) %>%
+            qmd = sqrt(baac/(0.005454 * tpasite)),
+            ## Estimate Species Diversity at the plot level
+            shannon_index = vegan::diversity(numspecies)) %>%
   distinct(plt_cn, .keep_all = TRUE) 
 
 ## Species list is downloaded from here: https://www.fia.fs.usda.gov/library/field-guides-methods-proc/#TreeSpecList
@@ -344,7 +349,7 @@ datprev = dat_grouped %>%
   ## Add in previous measurements for invyr, measdate, rd.perc.cut, baac.perc.cut, and qmd
   filter(plt_cn %in% unique(prev.plt.cn)) %>%
   select(plt_cn, invyr, measdate, dstrbcd1, dstrbcd2, dstrbcd3, harvest_type1_srs,  baac.perc.cut, 
-          qmd, tpasite, trtcd1, volbfgrs.ac, baac, total_mtco2eac) %>%
+          qmd, tpasite, trtcd1, volbfgrs.ac, baac, total_mtco2eac, shannon_index) %>%
   rename_with(~paste0(., ".prev")) %>%
   rename(prev.plt.cn = plt_cn.prev) %>%
   right_join(dat_grouped) %>%
@@ -353,14 +358,14 @@ datprev = dat_grouped %>%
 datprevprev = datprev %>%
   ## Add in previous, previous measurements for rd.perc.cut, baac.perc.cut, and qmd
   filter(plt_cn %in% unique(prev.prev.plt.cn)) %>%
-  select(plt_cn, invyr, measdate, dstrbcd1, dstrbcd2, dstrbcd3, harvest_type1_srs, total_mtco2eac,  baac.perc.cut, qmd, trtcd1, baac) %>%
+  select(plt_cn, invyr, measdate, dstrbcd1, dstrbcd2, dstrbcd3, harvest_type1_srs, total_mtco2eac,  baac.perc.cut, qmd, trtcd1, baac, shannon_index) %>%
   rename_with(~paste0(., ".prev.prev")) %>%
   rename(prev.prev.plt.cn = plt_cn.prev.prev) %>%
   right_join(datprev)
 dat = datprevprev %>%
   ## Add in previous, previous measurements for rd.perc.cut, baac.perc.cut, and qmd
   filter(plt_cn %in% unique(prev.prev.prev.plt.cn)) %>%
-  select(plt_cn, qmd, trtcd1, baac, total_mtco2eac) %>%
+  select(plt_cn, qmd, trtcd1, baac, total_mtco2eac, shannon_index) %>%
   rename_with(~paste0(., ".prev.prev.prev")) %>%
   rename(prev.prev.prev.plt.cn = plt_cn.prev.prev.prev) %>%
   right_join(datprevprev) %>%
@@ -404,7 +409,7 @@ dat = datprevprev %>%
 
 ## The following columns will change over time and we need initial measurements
 colstodupe <- c("forestname", "forestsubtype", "stdage", "gsstk", "desire.prev", 
-                "baac", "tpasite", "volbfgrs.ac", "lorey_ht", "qmd", "invyr", "total_mtco2eac")
+                "baac", "tpasite", "volbfgrs.ac", "lorey_ht", "qmd", "invyr", "total_mtco2eac", "shannon_index")
 
 
 ## Find initial measurements

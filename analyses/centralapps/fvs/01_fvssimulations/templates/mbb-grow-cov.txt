@@ -65,15 +65,6 @@ SUMMARY
 COMPUTDB
 End
 
-!Exten:base Title:Adjust mortality rates
-FixMort         0        PARMS(WA, 1.0, 0.0, 999.0, 0, 2)
-!Exten:base Title:Adjust mortality rates
-FixMort         0        PARMS(BA, 1.0, 0.0, 999.0, 0, 2) 
-!Exten:base Title:Adjust mortality rates
-FixMort         0        PARMS(GA, 1.0, 0.0, 999.0, 0, 2)
-!Exten:base Title:Adjust mortality rates
-FixMort         0        PARMS(AB, 0.85, 0.0, 999.0, 0, 2)
-
 ! Process the simulation
 PROCESS
 STOP

@@ -64,15 +64,20 @@ CARBREDB         2
 SUMMARY
 COMPUTDB
 End
+END
 
-!Exten:base Title:Adjust mortality rates
-FixMort         0        PARMS(WA, 1.0, 0.0, 999.0, 0, 2)
-!Exten:base Title:Adjust mortality rates
-FixMort         0        PARMS(BA, 1.0, 0.0, 999.0, 0, 2) 
-!Exten:base Title:Adjust mortality rates
-FixMort         0        PARMS(GA, 1.0, 0.0, 999.0, 0, 2)
-!Exten:base Title:Adjust mortality rates
-FixMort         0        PARMS(AB, 0.85, 0.0, 999.0, 0, 2)
+! Conditionally thin throughout if BA target is met 
+! since previous harvest during contract
+IF
+BBA GE 50 
+THEN
+! The BA target is not always met due to the lower limit on the eligible diameter range
+ThinDBH         0    PARMS(0, 999, 1, All, 0, BAtarget) 
+ENDIF
+
+! Process the simulation
+PROCESS
+STOP
 
 ! Process the simulation
 PROCESS

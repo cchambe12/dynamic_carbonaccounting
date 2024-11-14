@@ -22,7 +22,7 @@ setwd("~/Documents/git/dynamic_carbonaccounting/analyses/centralapps/fvs/02_carb
 datafolder <- "~/Documents/git/dynamic_carbonaccounting/analyses/centralapps/fvs/02_carbonaccounting/output/"
 
 ## Are you assessing Maple / beech / birch or Oak / hickory? If Oak / Hickory then say TRUE
-useoak <- TRUE
+useoak <- FALSE
 
 
 ##################### Saving key files ###################

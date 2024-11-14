@@ -23,7 +23,7 @@ class InvYearRange(NamedTuple):
     """Typing class for inventory year range values
     """
     min: int = 2014
-    max: int = 2019
+    max: int = 2024
 
 
 @dataclass
