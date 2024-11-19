@@ -267,6 +267,27 @@ diffmod <- brm(meangrow ~ BAremv + BAAC + ChangeQMD + SpDiversity + SiteClass + 
                  (1 | method), data=qmd,
                chains = 2, control = list(adapt_delta = 0.99))
 
+library(broom.mixed)
+
+png("figures/table_standcharacteristics.png", 
+    width=6,
+    height=7, units="in", res = 350 )
+grid.arrange(diffmod %>% 
+  tidy(conf.level = 0.89) %>%
+  select(term, estimate, std.error, conf.low, conf.high) %>%
+    mutate(estimate = round(estimate, digits=2),
+           std.error = round(std.error, digits=2),
+           conf.low = round(conf.low, digits=2),
+           conf.high = round(conf.high, digits=2),) %>%
+  filter(!term %in% c("sd__(Intercept)", "sd__Observation")) %>%
+    tableGrob(theme = ttheme_default(
+      core = list(bg_params=list(fill=c("grey90", "white"))),
+      colhead = list(fg_params=list(col="white"),
+                     bg_params=list(fill="#084594"))), rows = NULL))
+dev.off()
+
+
+
 ### Strongest drivers are thinning strategy and overstory relative density 
 sjPlot::plot_model(diffmod, type = "est", ci.lvl = 0.89, colors=c("firebrick4", "blue4"),
                    title="Model estimate of additional MtCO2e/ac/yr", ci.style="bar",
@@ -305,7 +326,7 @@ diffp <- ggplot(qmd %>% mutate(method = ifelse(method=="staticmean", "single mod
        aes(x=order, col=order, y=modgrow, group=order, fill=order)) + 
   stat_summary(fun.data = quantiles_89, geom="boxplot",
                width=0.1) + theme_bw() + scale_color_colorblind(name="Method") + 
-  scale_fill_colorblind(name="Method") + theme(legend.position = "none") + facet_wrap(~forestname) +
+  scale_fill_colorblind(name="Method") + theme(legend.position = "none") + 
   scale_x_discrete(guide = guide_axis(angle=45)) + xlab("") + ylab("Model estimate of\nadditional MtCO2e/ac/yr")
 
 png("figures/modeloutput_method.png", 
@@ -317,15 +338,18 @@ dev.off()
 ### Some relationship between removal rates and difference
 over.p <- ggplot(qmd, aes(x = rd.ac.over, y = modgrow)) +
   geom_smooth(method="lm", formula=y~poly(x,2), col="red4", fill="red4") + theme_bw() +
-  ylab("Model estimate of\nadditional MtCO2e/ac/yr") + xlab("Overstory Relative Density") 
+  ylab("Model estimate of\nadditional MtCO2e/ac/yr") + xlab("Overstory Relative Density") +
+  ggtitle("a) Relative density of the overstory")
 
 siteclass.p <- ggplot(qmd, aes(x = siteclcd, y = modgrow)) +
   geom_smooth(method="lm", formula=y~poly(x,2), col="red4", fill="red4") + theme_bw() +
-  ylab("Model estimate of\nadditional MtCO2e/ac/yr") + xlab("Site Productivity Code") 
+  ylab("Model estimate of\nadditional MtCO2e/ac/yr") + xlab("Site Productivity Code") +
+  ggtitle("c) Site productivity code")
 
 remv.p <- ggplot(qmd, aes(x = fiabau, y = modgrow)) +
   geom_smooth(method="lm", formula=y~poly(x,2), col="red4", fill="red4") + theme_bw() +
-  ylab("Model estimate of\nadditional MtCO2e/ac/yr") + xlab("% BA removed in common practice") 
+  ylab("Model estimate of\nadditional MtCO2e/ac/yr") + xlab("% BA removed in common practice") +
+  ggtitle("b) % BA removed\nin common practice")
 
 
 
@@ -348,6 +372,23 @@ qmd <- qmd %>%
 methodtypemod <- brm(meangrow ~ modeled + static + composite +
                        (modeled + static + composite | group), data=qmd,
                chains = 2, control = list(adapt_delta = 0.99))
+
+png("figures/table_approaches.png", 
+    width=6,
+    height=7, units="in", res = 350 )
+grid.arrange(methodtypemod %>% 
+               tidy(conf.level = 0.89) %>%
+               select(term, estimate, std.error, conf.low, conf.high) %>%
+               mutate(estimate = round(estimate, digits=2),
+                      std.error = round(std.error, digits=2),
+                      conf.low = round(conf.low, digits=2),
+                      conf.high = round(conf.high, digits=2),) %>%
+               filter(term %in% c("(Intercept)", "modeled", "static", "composite")) %>%
+               tableGrob(theme = ttheme_default(
+                 core = list(bg_params=list(fill=c("grey90", "white"))),
+                 colhead = list(fg_params=list(col="white"),
+                                bg_params=list(fill="#084594"))), rows = NULL))
+dev.off()
 
 
 ### Strongest drivers are thinning strategy and overstory relative density 
@@ -406,12 +447,12 @@ staticp <- ggplot(qmd, aes(x = static, y = methodtype)) +
                      guide=guide_axis(angle=45)) +
   ggtitle("b) Dynamic vs Static")
 
-compositep <- ggplot(qmd, aes(x = composite*1, y = methodtype)) +
+compositep <- ggplot(qmd, aes(x = composite*-1, y = methodtype)) +
   geom_smooth(method="lm", col="red4", fill="red4") + theme_bw() +
   ylab("Model estimate of\nadditional MtCO2e/ac/yr") + xlab("") + coord_cartesian(ylim=c(0.5, 2.25)) +
-  scale_x_continuous(breaks=c(0, 1), labels=c("Composite BAU", "Single BAU"),
+  scale_x_continuous(breaks=c(0, -1), labels=c("Single BAU", "Composite BAU"),
                      guide=guide_axis(angle=45)) +
-  ggtitle("c) Composite/Blended vs 100% harvest likelihood")
+  ggtitle("c) Composite/Blended vs\n100% harvest likelihood")
 
 
 
