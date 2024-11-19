@@ -2,7 +2,7 @@
 
 
 ### /fiadata/
-Holds the outputted tables from rFIA. To make the BAU_template.Rmd run, you need to make a new folder for each project you want to run.
+This is hidden due to size but holds the outputted tables from rFIA. To make the BAU_template.Rmd run, you need to make a new folder for each project you want to run.
 **Please note:** the /fiadata/ folder is hidden in the .gitignore file since it gets so big. Please make a local version on your Desktop. 
 
 ### /analyses/
@@ -23,3 +23,10 @@ This folder holds all relevant species and forest type .csv files that the BAU_t
 ## Recommendations:
 #### 1) When listing out the Forest Type Group, it must follow exactly what is listed in the analyses/input/REF_FOREST_TYPE_GROUP.csv "MEANING" column
 #### 3) The Forest Type Groups must be listed in ALPHABETICAL order for output to be appropriate. 
+
+
+## Notes on each region folder:
+#### 1) The dynamicbaseline.R file which runs the matching code across 10 "project sites" for each region and forest type combination
+#### 2) In the fvs/ folder there are two subfolders: 
+#####          a. 01_fvssimulations - holds all Python code to run FVS from the computer
+#####          b. 02_carbonaccounting - compiles FVS output into R as .csv files to later compare to the measured, dynamic method
