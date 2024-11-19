@@ -73,7 +73,7 @@ END
 ! Conditionally thin from above if BA target is met and xx years has past
 ! since previous harvest during contract
 IF
-BBA GE 50
+BBA GE 90
 THEN
 ! The BA target is not always met due to the lower limit on the eligible diameter range
 ThinDBH         0    PARMS(0, 999, 1, All, 0, BAtarget) 

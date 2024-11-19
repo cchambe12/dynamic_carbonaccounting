@@ -33,17 +33,52 @@ useoak <- FALSE
 #Save key files
 #Setting the year
 
+################################################################################
+################# Determine dynamic baseline for HI and HL #####################
+mbb <- read.csv("../../output/clean_northwoods_fiadata.csv") %>%
+  filter(forestname == "Maple / beech / birch group") %>%
+  mutate(timediff = mean(timediff)) %>%
+  select(plt_cn, harvest, baac.perc.cut, baac.perc.cut.prev, baac.perc.cut.prev.prev, forestname, 
+         harv1, harv2, harv3, timediff) %>%
+  ungroup() %>% distinct()
+
+remv1mbb = mean(mbb$baac.perc.cut.prev.prev[mbb$baac.perc.cut.prev.prev>0])
+remv3mbb = mean(mbb$baac.perc.cut[mbb$baac.perc.cut>0])
+
+hl1mbb <- unique(round((nrow(mbb[mbb$harv3==1,])/nrow(mbb)) * (20/(mbb$timediff)), digits=2))
+hl3mbb <- unique(round((nrow(mbb[mbb$harv1==1,])/nrow(mbb)) * (20/(mbb$timediff)), digits=2))
+
+oh <- read.csv("../../output/clean_northwoods_fiadata.csv") %>%
+  filter(forestname == "Oak / hickory group") %>%
+  mutate(timediff = mean(timediff)) %>%
+  select(plt_cn, harvest, baac.perc.cut, baac.perc.cut.prev, baac.perc.cut.prev.prev, forestname, 
+         harv1, harv2, harv3, timediff) %>%
+  ungroup() %>% distinct()
+
+remv1oh = mean(oh$baac.perc.cut.prev.prev[oh$baac.perc.cut.prev.prev>0])
+remv3oh = mean(oh$baac.perc.cut[oh$baac.perc.cut>0])
+
+hl1oh <- unique(round((nrow(oh[oh$harv3==1,])/nrow(oh)) * (20/(oh$timediff)), digits=2))
+hl3oh <- unique(round((nrow(oh[oh$harv1==1,])/nrow(oh)) * (20/(oh$timediff)), digits=2))
+
 #### Select inputs
 if(useoak == TRUE){
   i <- "oak"
   ## What is the harvest likelihood over the 20-year period
-  oakrate <- 0.29
+  oakrate <- 0.28
+  
+  oakrate1 = hl1oh
+  oakrate3 = hl3oh
+  
 }else{
   i <- "mbb"
-  mbbrate <- 0.41
+  mbbrate <- 0.43
+  
+  mbbrate1 = hl1mbb
+  mbbrate3 = hl3mbb
+  
 }
 timestamp <- 20
-
 
 ################################################################################
 #### Get the FIA data from the prefeasibility scoping with eligibility thresholds
@@ -56,19 +91,6 @@ if(useoak == TRUE){
   bau <- read.csv( "output/clean_northwoods_fiadata.csv") %>%
     filter(forestname == "Maple / beech / birch group")
 }
-
-
-#### Get FVS names of species
-fvscodes <- read.csv("input/specieslookup.csv") 
-colnames(fvscodes) <- fvscodes[1,]
-fvscodes <- fvscodes[-1, ]
-
-fvscodes <- fvscodes %>%
-  select(`TNC code`, Species, `FIA Species Code`, `FVS Southern Variant Species Code`,
-         `Vol Table FIA Species Code`, CONFIG_ID, SPECIES_SYMBOL, SPECIES_NUM, 
-         CF_MIN_DBH, CF_VOL_EQ, CF_VOL_SP, COEF_TABLE, COEF_TBL_SP) %>%
-  filter(`FVS Southern Variant Species Code` != "") %>%
-  rename(SpeciesFVS = `FVS Southern Variant Species Code`)
 
 #Reading in key files
 cut <- read.csv(paste0(datafolder, "cut.raw", "_", i, ".csv"))
@@ -186,79 +208,59 @@ if(useoak == TRUE){
   
   cleancarb <- w.carb %>%
     #Calculate scenarios
-    mutate(calc.oak.gmf = (OAK_GMF*oakrate)*(44/12), # + OAK_GROW*(1-oakrate)
-           calc.oak.bau = (OAK_BAU*oakrate)*(44/12), # + OAK_GROW*(1-oakrate)
-           calc.oak.grow = OAK_GROW*(44/12),
-           #Calculate deltas
-           delta.oak.gmf = calc.oak.gmf - calc.oak.bau,
-           delta.oak.grow = calc.oak.grow - calc.oak.bau) %>%
+    mutate(#calc.oak.gmf = (OAK_GMF*oakrate)*(44/12),
+      #calc.oak.gmf.comp = (OAK_GMF*oakrate + OAK_GROW*(1-oakrate))*(44/12), 
+      calc.oak.bau = (OAK_BAU*oakrate)*(44/12), 
+      calc.oak.bau.comp = (OAK_BAU*oakrate + OAK_GROW*(1-oakrate))*(44/12), #
+      calc.oak.bau.comp.blend = ifelse(time<15, OAK_BAU*oakrate1 + OAK_GROW*(1-oakrate1)*(44/12),
+                                       OAK_BAU*oakrate3 + OAK_GROW*(1-oakrate3)*(44/12)), #
+      calc.oak.grow = OAK_GROW*(44/12),
+      #Calculate deltas
+      #delta.oak.gmf = calc.oak.gmf - calc.oak.bau,
+      delta.oak.grow = calc.oak.grow - calc.oak.bau,
+      #delta.oak.gmf.comp = calc.oak.gmf.comp - calc.oak.bau.comp,
+      delta.oak.grow.comp = calc.oak.grow - calc.oak.bau.comp,
+      delta.oak.grow.comp.blend = calc.oak.grow - calc.oak.bau.comp.blend) %>%
     rename(plt_cn = Stand_CN) %>%
     left_join(bau)
   
-  mean(cleancarb$delta.oak.gmf)
+  #mean(cleancarb$delta.oak.gmf)
   mean(cleancarb$delta.oak.grow)
+  mean(cleancarb$delta.oak.grow.comp)
+  mean(cleancarb$delta.oak.grow.comp.blend)
   
   write.csv(cleancarb, "output/clean_fvsoutput_oak.csv", row.names=FALSE)
+  
   
 }else if(useoak == FALSE) {
   
   cleancarb <- w.carb %>%
     #filter(time == timestamp) %>%
     #Calculate scenarios
-    mutate(calc.mbb.gmf = (MBB_GMF*mbbrate)*(44/12), # + MBB_GROW*(1-mbbrate)
-           calc.mbb.bau = (MBB_BAU*mbbrate)*(44/12), # + MBB_GROW*(1-mbbrate)
-           calc.mbb.grow = MBB_GROW*(44/12),
-           #Calculate deltas
-           delta.mbb.gmf = calc.mbb.gmf - calc.mbb.bau,
-           delta.mbb.grow = calc.mbb.grow - calc.mbb.bau) %>%
+    mutate(#calc.mbb.gmf = (MBB_GMF*mbbrate)*(44/12),
+      #calc.mbb.gmf.comp = (MBB_GMF*mbbrate + MBB_GROW*(1-mbbrate))*(44/12), 
+      calc.mbb.bau = (MBB_BAU*mbbrate)*(44/12), 
+      calc.mbb.bau.comp = (MBB_BAU*mbbrate + MBB_GROW*(1-mbbrate))*(44/12), #
+      calc.mbb.bau.comp.blend = ifelse(time<15, MBB_BAU*mbbrate1 + MBB_GROW*(1-mbbrate1)*(44/12),
+                                       MBB_BAU*mbbrate3 + MBB_GROW*(1-mbbrate3)*(44/12)), #
+      calc.mbb.grow = MBB_GROW*(44/12),
+      #Calculate deltas
+      #delta.mbb.gmf = calc.mbb.gmf - calc.mbb.bau,
+      delta.mbb.grow = calc.mbb.grow - calc.mbb.bau,
+      #delta.mbb.gmf.comp = calc.mbb.gmf.comp - calc.mbb.bau.comp,
+      delta.mbb.grow.comp = calc.mbb.grow - calc.mbb.bau.comp,
+      delta.mbb.grow.comp.blend = calc.mbb.grow - calc.mbb.bau.comp.blend) %>%
     rename(plt_cn = Stand_CN) %>%
     left_join(bau)
   
-  mean(cleancarb$delta.mbb.gmf)
+  #mean(cleancarb$delta.mbb.gmf)
   mean(cleancarb$delta.mbb.grow)
+  mean(cleancarb$delta.mbb.grow.comp)
+  mean(cleancarb$delta.mbb.grow.comp.blend)
   
   write.csv(cleancarb, "output/clean_fvsoutput_mbb.csv", row.names=FALSE)
   
   
 }
 
-if(useoak == TRUE){
-  
-  png("figures/carbongains_oak.png", 
-      width=7, height=5, unit="in", res=200)
-  ggplot(cleancarb %>% 
-           pivot_longer(cols = c(delta.oak.gmf, delta.oak.grow), names_to = "StandID", values_to = "delta") %>%
-           group_by(StandID) %>% #, ecosub
-           mutate(StandID = ifelse(StandID == "delta.oak.grow", "Extended Rotation", "25% allowable cut")) %>%
-           summarize(meanc = mean(delta, na.rm=TRUE),
-                     sec = sd(delta, na.rm=TRUE)/sqrt(length(delta))), 
-         aes(y=meanc, x=StandID, col = StandID, fill=StandID)) + 
-    geom_col() + geom_errorbar(aes(ymin = meanc - sec, ymax = meanc + sec)) +
-    scale_color_d3(name="Practice", palette = "category20b") +
-    scale_fill_d3(name = "Practice", palette = "category20b") +
-    theme_bw() + xlab("") + ylab("Total Mt CO2 per acre") +
-    theme(legend.position = "none") + #facet_wrap(~ecosub) +
-    scale_x_discrete(guide = guide_axis(angle=45)) +
-    geom_text(aes(label = round(meanc, digits=2)), y=0.03, col="white") 
-  dev.off()
-  
-}else if(useoak == FALSE) {
-  
-  png("figures/carbongains_mbb.png", 
-      width=7, height=5, unit="in", res=200)
-  ggplot(cleancarb %>% 
-           pivot_longer(cols = c(delta.mbb.gmf, delta.mbb.grow), names_to = "StandID", values_to = "delta") %>%
-           group_by(StandID) %>% #, ecosub
-           mutate(StandID = ifelse(StandID == "delta.mbb.grow", "Extended Rotation", "25% allowable cut")) %>%
-           summarize(meanc = mean(delta, na.rm=TRUE),
-                     sec = sd(delta, na.rm=TRUE)/sqrt(length(delta))), 
-         aes(y=meanc, x=StandID, col = StandID, fill=StandID)) + 
-    geom_col() + geom_errorbar(aes(ymin = meanc - sec, ymax = meanc + sec)) +
-    scale_color_d3(name="Practice", palette = "category20b") +
-    scale_fill_d3(name = "Practice", palette = "category20b") +
-    theme_bw() + xlab("") + ylab("Total Mt CO2 per acre") +
-    theme(legend.position = "none") + #facet_wrap(~ecosub) +
-    scale_x_discrete(guide = guide_axis(angle=45)) +
-    geom_text(aes(label = round(meanc, digits=2)), y=0.08, col="white") 
-  dev.off()
-}
+

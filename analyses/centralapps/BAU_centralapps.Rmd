@@ -277,7 +277,7 @@ trees <- left_join(tree, cond, by=c("plt_cn", "invyr", "statecd", "countycd", "u
 allplot = allplot %>%
   filter(invyr > 1997) %>%
   dplyr::select("cn", "ecosubcd", "statecd", "countycd", "unitcd", "lat", "lon", "elev", 
-                "measmon", "measday", "measyear", "remper", "kindcd", "p2panel", "qa_status", "designcd") %>% 
+                "measmon", "measday", "measyear", "remper", "kindcd", "p2panel", "qa_status", "designcd", "rddistcd") %>% 
   mutate(ecosub = substr(ecosubcd, 1, nchar(ecosubcd)-2),
          countyid = paste(statecd, countycd),
          measdate = as.Date(paste(measmon, measday, measyear, sep="-"), format="%m-%d-%Y")) %>%
@@ -312,7 +312,7 @@ dat_grouped <- treeplot %>%
   group_by(plt_cn) %>%
   summarize(across(c(ecosub, ecosubcd, statecd, countycd, plot, unitcd, lat, lon, fortypcd, owngrpcd, stdorgcd, invyr, remper, measdate, prev.plt.cn, prev.prev.plt.cn, prev.prev.prev.plt.cn, dstrbcd1, 
                      dstrbcd2, dstrbcd3, stdage, siteclcd, spgrpcd, kindcd, designcd, qa_status,
-                     gsstk, elev,  slope, aspect, trtcd1, harvest_type1_srs, physclcd), function(x) first(na.omit(x))),
+                     gsstk, elev,  slope, aspect, trtcd1, harvest_type1_srs, physclcd, rddistcd), function(x) first(na.omit(x))),
             ## Calculate % BA removed
             baac.perc.cut = (sum(baac.prev[harv], na.rm=TRUE))/sum(baac.prev[prev], na.rm=TRUE),
             ## Sum species desireability from previous measurement
@@ -321,6 +321,9 @@ dat_grouped <- treeplot %>%
             avg.desire.harv = sum(desire[harv] * (baac[harv]/sum(baac[harv], na.rm=TRUE)), na.rm=TRUE),
             ## Sum species desireability of remaining trees
             avg.desire.standing = sum(desire[stand] * (baac[stand]/sum(baac[stand], na.rm=TRUE)), na.rm=TRUE),
+            ## Calculate relative density for understory and overstory specis
+            rd.ac.over = sum(rd.ac[dia >= 5 & statuscd == 1], na.rm = TRUE),
+            rd.ac.regen = sum(rd.ac[dia < 5 & statuscd == 1], na.rm = TRUE),
             ## Stand-level total Mt CO2e/acre
             total_mtco2eac = sum(total_mtco2eac, na.rm=TRUE),
             ## Total stand-level BAAC 
@@ -460,7 +463,7 @@ datclean <- dat_initial %>%
          qa_status == 1,
          owngrpcd == 40,
          siteclcd <= 6,
-         #volbfgrs.ac.initial > 4000,
+         volbfgrs.ac.initial > 2000,
          stdorgcd == 0,
          (invyr - invyr.prev) <= mean(invyr - invyr.prev, na.rm=TRUE) + 2)
 

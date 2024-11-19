@@ -218,7 +218,7 @@ trees <- left_join(tree, cond, by=c("plt_cn", "invyr", "statecd", "countycd", "u
 allplot = allplot %>%
   filter(invyr > 1997) %>%
   dplyr::select("cn", "ecosubcd", "statecd", "countycd", "unitcd", "lat", "lon", "elev", 
-                "measmon", "measday", "measyear", "remper", "kindcd", "p2panel", "qa_status", "designcd") %>% 
+                "measmon", "measday", "measyear", "remper", "kindcd", "p2panel", "qa_status", "designcd", "rddistcd") %>% 
   mutate(ecosub = substr(ecosubcd, 1, nchar(ecosubcd)-2),
          countyid = paste(statecd, countycd),
          measdate = as.Date(paste(measmon, measday, measyear, sep="-"), format="%m-%d-%Y")) %>%
@@ -256,31 +256,15 @@ dat_grouped <- treeplot %>%
             baac.perc.cut = (sum(baac.prev[harv], na.rm=TRUE))/sum(baac.prev[prev], na.rm=TRUE),
             ## Calculate HWP
             hwp = ((sum(volcsnet.ac.prev[harv], na.rm=TRUE)*TOTAL)*(2.47/35.3147))*0.907185,
-            ## Sum species desireability from previous measurement
-            desire.prev = sum(desire[prev] * (baac[prev]/sum(baac[prev], na.rm=TRUE)), na.rm=TRUE),
-            ## Identify species desireability of harvested trees
-            avg.desire.harv = sum(desire[harv] * (baac[harv]/sum(baac[harv], na.rm=TRUE)), na.rm=TRUE),
-            ## Sum species desireability of remaining trees
-            avg.desire.standing = sum(desire[stand] * (baac[stand]/sum(baac[stand], na.rm=TRUE)), na.rm=TRUE),
             ## Stand-level total Mt CO2e/acre
             total_mtco2eac = sum(total_mtco2eac, na.rm=TRUE),
+            ## Stand-level MBF vol of sawtimber portion gross
+            volbfgrs.ac = sum(volbfgrs.ac, na.rm=TRUE),
             ## Stand-level total Mt CO2e/acre + HWP
             totalc= sum(total_mtco2eac, na.rm=TRUE) + hwp,
             ## Calculate relative density for understory and overstory specis
             rd.ac.over = sum(rd.ac[dia >= 5 & statuscd == 1], na.rm = TRUE),
-            rd.ac.regen = sum(rd.ac[dia < 5 & statuscd == 1], na.rm = TRUE),
-            ## Total stand-level BAAC 
-            baac = sum(baac[current], na.rm=TRUE),
-            ## Stand-level TPA
-            tpasite = sum(tpa.custom[current], na.rm=TRUE),
-            ## Stand-level AG carbon (for covariate analysis or rapid assessments)
-            carbon_ag = sum(carbon_ag, na.rm=TRUE),
-            ## Stand-level MBF vol of sawtimber portion gross
-            volbfgrs.ac = sum(volbfgrs.ac, na.rm=TRUE),
-            ## Stand-level Lorey's Height
-            lorey_ht = sum(lorey_ht_part, na.rm = TRUE) / sum(ba_part_lorey, na.rm=TRUE),
-            ## Stand-level QMD of merchantable trees
-            qmd = sqrt(baac/(0.005454 * tpasite))) %>%
+            rd.ac.regen = sum(rd.ac[dia < 5 & statuscd == 1], na.rm = TRUE)) %>%
   distinct(plt_cn, .keep_all = TRUE) 
 
 ## Species list is downloaded from here: https://www.fia.fs.usda.gov/library/field-guides-methods-proc/#TreeSpecList
@@ -292,7 +276,7 @@ datprev = dat_grouped %>%
   ## Add in previous measurements for invyr, measdate, rd.perc.cut, baac.perc.cut, and qmd
   filter(plt_cn %in% unique(prev.plt.cn)) %>%
   select(plt_cn, invyr, measdate, dstrbcd1, dstrbcd2, dstrbcd3, harvest_type1_srs,  baac.perc.cut, hwp,
-         qmd, tpasite, trtcd1, volbfgrs.ac, baac, total_mtco2eac, totalc, rd.ac.over, rd.ac.regen) %>%
+         trtcd1, total_mtco2eac, totalc, rd.ac.over, rd.ac.regen, volbfgrs.ac) %>%
   rename_with(~paste0(., ".prev")) %>%
   rename(prev.plt.cn = plt_cn.prev) %>%
   right_join(dat_grouped) %>%
@@ -302,14 +286,14 @@ datprevprev = datprev %>%
   ## Add in previous, previous measurements for rd.perc.cut, baac.perc.cut, and qmd
   filter(plt_cn %in% unique(prev.prev.plt.cn)) %>%
   select(plt_cn, invyr, measdate, dstrbcd1, dstrbcd2, dstrbcd3, harvest_type1_srs, total_mtco2eac,  baac.perc.cut, hwp,
-         qmd, trtcd1, baac, totalc, rd.ac.over, rd.ac.regen) %>%
+         trtcd1, totalc, rd.ac.over, rd.ac.regen, volbfgrs.ac) %>%
   rename_with(~paste0(., ".prev.prev")) %>%
   rename(prev.prev.plt.cn = plt_cn.prev.prev) %>%
   right_join(datprev)
 dat = datprevprev %>%
   ## Add in previous, previous measurements for rd.perc.cut, baac.perc.cut, and qmd
   filter(plt_cn %in% unique(prev.prev.prev.plt.cn)) %>%
-  select(plt_cn, qmd, trtcd1, baac, total_mtco2eac) %>%
+  select(plt_cn, trtcd1, total_mtco2eac) %>%
   rename_with(~paste0(., ".prev.prev.prev")) %>%
   rename(prev.prev.prev.plt.cn = plt_cn.prev.prev.prev) %>%
   right_join(datprevprev) %>%
@@ -329,26 +313,14 @@ dat = datprevprev %>%
          numharvs = harv1 + harv2 + harv3) %>% 
   rowwise() %>% 
   mutate(baac.remv = ifelse(harvest==1, max(baac.perc.cut, baac.perc.cut.prev, baac.perc.cut.prev.prev), 0),
-         hwptot = ifelse(harvest==1, max(hwp, hwp.prev, hwp.prev.prev), 0),
-         qmdchange = ifelse(baac.remv == baac.perc.cut, qmd - qmd.prev,
-                            ifelse(baac.remv == baac.perc.cut.prev, 
-                                   qmd.prev - qmd.prev.prev, 
-                                   qmd.prev.prev - qmd.prev.prev.prev)),
-         baac.prevharv = ifelse(baac.remv == baac.perc.cut, baac.prev,
-                                ifelse(baac.remv == baac.perc.cut.prev, 
-                                       baac.prev.prev, 
-                                       baac.prev.prev.prev)),
-         qmd.prevharv = ifelse(baac.remv == baac.perc.cut, qmd.prev,
-                               ifelse(baac.remv == baac.perc.cut.prev, 
-                                      qmd.prev.prev, 
-                                      qmd.prev.prev.prev))) 
+         hwptot = ifelse(harvest==1, max(hwp, hwp.prev, hwp.prev.prev), 0)) 
 
 ### Step 2: Finding initial measurements for each plot
 ## We want to know what predictors lead to a harvest in the next 20 years
 
 ## The following columns will change over time and we need initial measurements
-colstodupe <- c("forestname", "forestsubtype", "stdage", "gsstk", "desire.prev", "rd.ac.over", "rd.ac.regen",
-                "baac", "tpasite", "volbfgrs.ac", "lorey_ht", "qmd", "invyr", "total_mtco2eac", "totalc")
+colstodupe <- c("forestname", "forestsubtype", "stdage", "gsstk", "rd.ac.over", "rd.ac.regen",
+                "invyr", "total_mtco2eac", "totalc", "volbfgrs.ac")
 
 
 ## Find initial measurements
@@ -399,9 +371,14 @@ datclean <- dat_initial %>%
          designcd == 1, 
          qa_status == 1,
          owngrpcd == 40,
+         volbfgrs.ac.initial > 4000,
          siteclcd <= 6,
          stdorgcd == 0,
          (invyr - invyr.prev) <= mean(invyr - invyr.prev, na.rm=TRUE) + 2)
+
+datclean$harvest <- ifelse(datclean$trtcd1 == 10 | 
+                             datclean$baac.perc.cut >= 0.25 & datclean$dstrbcd1 == 0 |
+                             !is.na(datclean$harvest_type1_srs), 1, 0) 
 
 datclean$harvest <- ifelse(datclean$trtcd1 == 10 | 
                              datclean$baac.perc.cut >= 0.25 & datclean$dstrbcd1 == 0 |
@@ -463,53 +440,10 @@ getgof.oaks <- left_join(getgofc.oaks, getgoft.oaks) %>%
          mean.deltac = mean(deltac, na.rm=TRUE))
 
 randomsubset.gof <- sample(unique(getgof.oaks$plt_cn), 10)
-randomsubset.grow <- sample(unique(getgof.oaks$plt_cn[!getgof.oaks$plt_cn %in% randomsubset.gof]), 7)
 
 
 getgof.oaks.final <- getgof.oaks %>%
   filter(plt_cn %in% randomsubset.gof)
-
-
-#### GMF type plots
-getgmfc.oaks <- oaks %>%
-  filter(get_removals <= 25 & get_removals >= 20, numharvs==1) %>%
-  select(plt_cn, totalc, totalc.prev, totalc.prev.prev, totalc.prev.prev.prev,
-         elev, stdage.prev.prev.prev,
-         unitname, baac.remv, harvest, nummills, rd.ac.over.prev.prev.prev,
-         rd.ac.regen.prev.prev.prev, siteclcd, ecosubcd, forestname) %>%
-  na.omit() %>%
-  pivot_longer(cols = c(totalc:totalc.prev.prev.prev), names_to = "time", 
-               values_to = "totalc") %>%
-  mutate(time = ifelse(time == "totalc", 15, 
-                       ifelse(time == "totalc.prev", 10,
-                              ifelse(time == "totalc.prev.prev", 5, 0))))
-
-getgmft.oaks <- oaks %>%
-  filter(get_removals <= 25 & get_removals >= 20, numharvs==1) %>%
-  select(plt_cn, invyr, invyr.prev, invyr.prev.prev, invyr.prev.prev.prev, 
-         elev, stdage.prev.prev.prev,
-         unitname, baac.remv, harvest, nummills, rd.ac.over.prev.prev.prev,
-         rd.ac.regen.prev.prev.prev, siteclcd, ecosubcd, forestname) %>%
-  na.omit() %>%
-  pivot_longer(cols = c(invyr:invyr.prev.prev.prev), names_to = "time", 
-               values_to = "year") %>%
-  mutate(time = ifelse(time == "invyr", 15, 
-                       ifelse(time == "invyr.prev", 10,
-                              ifelse(time == "invyr.prev.prev", 5, 0))))
-
-getgmf.oaks <- left_join(getgmfc.oaks, getgmft.oaks) %>%
-  #select(-time) %>%
-  arrange(plt_cn, year) %>%
-  group_by(plt_cn) %>%
-  mutate(deltac = (totalc - lag(totalc, default=first(totalc)))/(year-lag(year, default=first(year))),
-         deltac = ifelse(is.na(deltac), 0, deltac),
-         mean.deltac = mean(deltac, na.rm=TRUE)) 
-
-randomsubset.gmf <- sample(unique(getgmf.oaks$plt_cn), 3)
-randomsubset.gmf <- c(randomsubset.gmf, randomsubset.grow)
-
-getgmf.oaks.final <- full_join(getgmf.oaks, getgof.oaks) %>%
-  filter(plt_cn %in% randomsubset.gmf)
 
 
 #### Finally, entire BAU
@@ -544,82 +478,12 @@ donorpool.oaks <- left_join(donorpoolc.oaks, donorpoolt.oaks) %>%
          mean.deltac = mean(deltac, na.rm=TRUE))
 
 donorpool.oaks.final <- donorpool.oaks %>%
-  filter(!plt_cn %in% c(randomsubset.gmf, randomsubset.gof))
+  filter(!plt_cn %in% c(randomsubset.gof))
 
-#### Find Matches to each plot in GMF and GOF scenario
+#### Find Matches to each plot in GOF scenario
 ### Do some matching
 ### Match the sites with the potential controls
-pltstomatch.oaks <- donorpool.oaks.final %>%
-  select(-totalc, -year, -mean.deltac, -deltac, -time) %>%
-  distinct() %>%
-  mutate(tx = 0) 
-
-pltstochoose.oaksgmf <- getgmf.oaks.final %>%
-  select(-totalc, -year, -mean.deltac, -deltac, -time) %>%
-  distinct() %>%
-  mutate(tx = 1) 
-
-allplots <- rbind(pltstomatch.oaks, pltstochoose.oaksgmf) %>%
-  na.omit() 
-
-allplots$plotnames = rownames(allplots)
-
-
-# Use the MatchIt package in R to calculate Mahalanobis distances for each pairwise comparison of treat x control plot
-m.dists <- MatchIt::matchit(tx ~  elev + stdage.prev.prev.prev + rd.ac.over.prev.prev.prev + siteclcd + 
-                              rd.ac.regen.prev.prev.prev + ecosubcd, data = allplots,
-                           method="nearest", 
-                           distance="mahalanobis", replace=FALSE, ratio=20)
-
-## Convert to a vetor
-matches <- as.data.frame(m.dists$match.matrix) 
-
-## Order m.dists by Mahalanobis Distance
-matches = matches[order(matches[,2]), ]
-
-## Build data frame and match to "project" plots
-matches <- as.data.frame(matches)
-
-## Make longer
-matches <- matches %>%
-  pivot_longer(cols = c(V1:V20), names_to = "project", values_to = "matches") %>%
-  mutate(project = rep(allplots$plt_cn[allplots$tx==1], each=20))
-  
-
-## Append donor pool plt_cn to match dataframe
-matches$matches = allplots$plt_cn[match(matches$matches, allplots$plotnames)]
-
-## calculate weights for each plot
-compositebaseline <- matches %>%
-  group_by(project) %>%
-  mutate(inv.m.dist = (1/matches) * 100,
-         weight = inv.m.dist / sum(inv.m.dist, na.rm = TRUE)) %>%
-  left_join(donorpool.oaks.final %>% select(plt_cn, deltac, time, baac.remv), by= c("matches" = "plt_cn")) %>%
-  group_by(project, time) %>%
-  summarize(deltac.bau = weighted.mean(deltac),
-            baac.remv.bau = weighted.mean(baac.remv))
-
-project.bau <- compositebaseline %>%
-  ungroup() %>%
-  left_join(getgmf.oaks.final %>% select(plt_cn, deltac, time, baac.remv), by= c("project" = "plt_cn", "time"))
-
-mean(project.bau$baac.remv.bau)
-mean(project.bau$baac.remv)
-
-
-addit_oakgmf <- project.bau %>%
-  ungroup() %>%
-  group_by(project, time) %>%
-  mutate(addit = deltac - deltac.bau) %>%
-  distinct() %>%
-  ungroup() %>%
-  group_by(time) %>%
-  summarize(meangmf = mean(addit),
-            segmf = sd(addit)/sqrt(length(addit)))
-
-###################################################################################################
-###################################################################################################
-#### Repeat for GOF
+#### For GOF
 pltstomatch.oaks <- donorpool.oaks.final %>%
   select(-totalc, -year, -mean.deltac, -deltac, -time) %>%
   distinct() %>%
@@ -640,7 +504,7 @@ allplots$plotnames = rownames(allplots)
 m.dists <- MatchIt::matchit(tx ~  elev + stdage.prev.prev.prev + rd.ac.over.prev.prev.prev + siteclcd + 
                               rd.ac.regen.prev.prev.prev + ecosubcd, data = allplots,
                             method="nearest", 
-                            distance="mahalanobis", replace=FALSE, ratio=20)
+                            distance="mahalanobis", replace=TRUE, ratio=10)
 
 ## Convert to a vetor
 matches <- as.data.frame(m.dists$match.matrix) 
@@ -653,8 +517,8 @@ matches <- as.data.frame(matches)
 
 ## Make longer
 matches <- matches %>%
-  pivot_longer(cols = c(V1:V20), names_to = "project", values_to = "matches") %>%
-  mutate(project = rep(allplots$plt_cn[allplots$tx==1], each=20))
+  pivot_longer(cols = c(V1:V10), names_to = "project", values_to = "matches") %>%
+  mutate(project = rep(allplots$plt_cn[allplots$tx==1], each=10))
 
 
 ## Append donor pool plt_cn to match dataframe
@@ -688,19 +552,17 @@ addit_oakgof <- project.bau %>%
   summarize(meangrow = mean(addit),
             segrow = sd(addit)/sqrt(length(addit)))
 
-addit_oaks <- full_join(addit_oakgmf, addit_oakgof) %>%
+addit_oaks <- addit_oakgof %>%
   mutate(forestname = "Oak / hickory group",
          region = "Central Apps",
          method = "dynamic") 
 
 ######## Compare to a static baseline
 fvs_getgmfs <- oakfvs %>%
-  select(plt_cn, time, delta.oak.gmf, delta.oak.grow) %>% 
+  select(plt_cn, time, delta.oak.grow) %>% 
   filter(time < 20) %>%
   group_by(time) %>%
-  summarize(meangmf = mean(delta.oak.gmf),
-         segmf = sd(delta.oak.gmf),
-         meangrow = mean(delta.oak.grow),
+  summarize(meangrow = mean(delta.oak.grow),
          segrow = sd(delta.oak.grow)) %>%
   mutate(forestname = "Oak / hickory group",
          region = "Central Apps",
@@ -708,11 +570,10 @@ fvs_getgmfs <- oakfvs %>%
 
 addit_oaks = full_join(addit_oaks, fvs_getgmfs)
 
-mean(fvs_getgmfs$meangmf)
 mean(fvs_getgmfs$meangrow)
 
-ggplot(addit_oaks, aes(x=time, y=meangmf, col=method, fill=method)) +
-  geom_ribbon(aes(ymin=meangmf-segmf, ymax=meangmf+segmf), alpha=0.3) +
+ggplot(addit_oaks, aes(x=time, y=meangrow, col=method, fill=method)) +
+  geom_ribbon(aes(ymin=meangrow-segrow, ymax=meangrow+segrow), alpha=0.3) +
   theme_bw() + scale_color_d3(palette="category20c") + scale_fill_d3(palette="category20c")
 
 write.csv(addit_oaks, "output/centralapps_oaks_scenarios.csv", row.names=FALSE)
@@ -823,7 +684,7 @@ donorpool.mbbs <- left_join(donorpoolc.mbbs, donorpoolt.mbbs) %>%
          mean.deltac = mean(deltac, na.rm=TRUE))
 
 donorpool.mbbs.final <- donorpool.mbbs %>%
-  filter(!plt_cn %in% c(randomsubset.gmf, randomsubset.gof))
+  filter(!plt_cn %in% c(randomsubset.gof))
 
 #### Find Matches to each plot in GOF scenario
 ### Do some matching
@@ -848,7 +709,7 @@ allplots$plotnames = rownames(allplots)
 m.dists <- MatchIt::matchit(tx ~  elev + stdage.prev.prev.prev + rd.ac.over.prev.prev.prev + siteclcd + 
                               rd.ac.regen.prev.prev.prev + ecosubcd, data = allplots,
                             method="nearest", 
-                            distance="mahalanobis", replace=FALSE, ratio=20)
+                            distance="mahalanobis", replace=TRUE, ratio=10)
 
 ## Convert to a vetor
 matches <- as.data.frame(m.dists$match.matrix) 
@@ -861,8 +722,8 @@ matches <- as.data.frame(matches)
 
 ## Make longer
 matches <- matches %>%
-  pivot_longer(cols = c(V1:V20), names_to = "project", values_to = "matches") %>%
-  mutate(project = rep(allplots$plt_cn[allplots$tx==1], each=20))
+  pivot_longer(cols = c(V1:V10), names_to = "project", values_to = "matches") %>%
+  mutate(project = rep(allplots$plt_cn[allplots$tx==1], each=10))
 
 
 ## Append donor pool plt_cn to match dataframe
@@ -914,11 +775,11 @@ fvs_getgofs <- mbbfvs %>%
 
 addit_mbbs = full_join(addit_mbbs, fvs_getgofs)
 
-mean(addit_mbbs$meangrow[addit_mbbs$method=="dynamic"]) ### 0.44
-mean(addit_mbbs$meangrow[addit_mbbs$method=="static"]) ### 4.26
+mean(addit_mbbs$meangrow[addit_mbbs$method=="dynamic"]) ### 1.3
+mean(addit_mbbs$meangrow[addit_mbbs$method=="static"]) ### 3.77
 
-mean(addit_oaks$meangrow[addit_oaks$method=="dynamic"]) ### 1.09
-mean(addit_oaks$meangrow[addit_oaks$method=="static"]) ### 3.52
+mean(addit_oaks$meangrow[addit_oaks$method=="dynamic"]) ### 1.03
+mean(addit_oaks$meangrow[addit_oaks$method=="static"]) ### 3.19
 
 write.csv(addit_mbbs, "output/centralapps_mbbs_scenarios.csv", row.names=FALSE)
 write.csv(project.bau, "output/centralapps_mbbs_projectvbau_fia.csv", row.names = FALSE)

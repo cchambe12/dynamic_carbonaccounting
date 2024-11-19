@@ -1,6 +1,7 @@
 # Specific Folders
 *fiadata/
 *db/
+/zarchive/
 
 *analyses/northeast/output/
 *analyses/northeast/fvs/01_fvssimulations/output/

@@ -258,6 +258,8 @@ dat_grouped <- treeplot %>%
             hwp = ((sum(volcsnet.ac.prev[harv], na.rm=TRUE)*TOTAL)*(2.47/35.3147))*0.907185,
             ## Stand-level total Mt CO2e/acre
             total_mtco2eac = sum(total_mtco2eac, na.rm=TRUE),
+            ## Stand-level MBF vol of sawtimber portion gross
+            volbfgrs.ac = sum(volbfgrs.ac, na.rm=TRUE),
             ## Stand-level total Mt CO2e/acre + HWP
             totalc= sum(total_mtco2eac, na.rm=TRUE) + hwp,
             ## Calculate relative density for understory and overstory specis
@@ -274,7 +276,7 @@ datprev = dat_grouped %>%
   ## Add in previous measurements for invyr, measdate, rd.perc.cut, baac.perc.cut, and qmd
   filter(plt_cn %in% unique(prev.plt.cn)) %>%
   select(plt_cn, invyr, measdate, dstrbcd1, dstrbcd2, dstrbcd3, harvest_type1_srs,  baac.perc.cut, hwp,
-         trtcd1, total_mtco2eac, totalc, rd.ac.over, rd.ac.regen) %>%
+         trtcd1, total_mtco2eac, totalc, rd.ac.over, rd.ac.regen, volbfgrs.ac) %>%
   rename_with(~paste0(., ".prev")) %>%
   rename(prev.plt.cn = plt_cn.prev) %>%
   right_join(dat_grouped) %>%
@@ -284,7 +286,7 @@ datprevprev = datprev %>%
   ## Add in previous, previous measurements for rd.perc.cut, baac.perc.cut, and qmd
   filter(plt_cn %in% unique(prev.prev.plt.cn)) %>%
   select(plt_cn, invyr, measdate, dstrbcd1, dstrbcd2, dstrbcd3, harvest_type1_srs, total_mtco2eac,  baac.perc.cut, hwp,
-         trtcd1, totalc, rd.ac.over, rd.ac.regen) %>%
+         trtcd1, totalc, rd.ac.over, rd.ac.regen, volbfgrs.ac) %>%
   rename_with(~paste0(., ".prev.prev")) %>%
   rename(prev.prev.plt.cn = plt_cn.prev.prev) %>%
   right_join(datprev)
@@ -318,7 +320,7 @@ dat = datprevprev %>%
 
 ## The following columns will change over time and we need initial measurements
 colstodupe <- c("forestname", "forestsubtype", "stdage", "gsstk", "rd.ac.over", "rd.ac.regen",
-                "invyr", "total_mtco2eac", "totalc")
+                "invyr", "total_mtco2eac", "totalc", "volbfgrs.ac")
 
 
 ## Find initial measurements
@@ -348,6 +350,12 @@ prevprevprevdf <- prevprevprevdf %>%
 
 dat_initial <- full_join(dat_initial, prevprevprevdf)
 
+dat_initial <- dat_initial %>%
+  mutate(volbfgrs.ac.initial = ifelse(!is.na(volbfgrs.ac.prev.prev.prev),
+                                      volbfgrs.ac.prev.prev.prev,
+                                      ifelse(!is.na(volbfgrs.ac.prev.prev), volbfgrs.ac.prev.prev,
+                                             ifelse(!is.na(volbfgrs.ac.prev), volbfgrs.ac.prev,
+                                                    volbfgrs.ac))))
 
 getmills <- left_join(fips, dat_initial %>% 
                         select(statecd, countycd, unitcd) %>% distinct()) %>%
@@ -363,9 +371,11 @@ datclean <- dat_initial %>%
          designcd == 1, 
          qa_status == 1,
          owngrpcd == 40,
+         volbfgrs.ac.initial > 4000,
          siteclcd <= 6,
          stdorgcd == 0,
          (invyr - invyr.prev) <= mean(invyr - invyr.prev, na.rm=TRUE) + 2)
+
 
 datclean$harvest <- ifelse(datclean$trtcd1 == 10 | 
                              datclean$baac.perc.cut >= 0.25 & datclean$dstrbcd1 == 0 |
@@ -487,7 +497,7 @@ allplots$plotnames = rownames(allplots)
 m.dists <- MatchIt::matchit(tx ~  elev + stdage.prev.prev.prev + rd.ac.over.prev.prev.prev + siteclcd + 
                               rd.ac.regen.prev.prev.prev + ecosubcd, data = allplots,
                             method="nearest", 
-                            distance="mahalanobis", replace=FALSE, ratio=7)
+                            distance="mahalanobis", replace=TRUE, ratio=10)
 
 ## Convert to a vetor
 matches <- as.data.frame(m.dists$match.matrix) 
@@ -500,8 +510,8 @@ matches <- as.data.frame(matches)
 
 ## Make longer
 matches <- matches %>%
-  pivot_longer(cols = c(V1:V7), names_to = "project", values_to = "matches") %>%
-  mutate(project = rep(allplots$plt_cn[allplots$tx==1], each=7))
+  pivot_longer(cols = c(V1:V10), names_to = "project", values_to = "matches") %>%
+  mutate(project = rep(allplots$plt_cn[allplots$tx==1], each=10))
 
 
 ## Append donor pool plt_cn to match dataframe
@@ -542,7 +552,7 @@ addit_oaks <- addit_oakgof %>%
 
 ######## Compare to a static baseline
 fvs_getgmfs <- oakfvs %>%
-  select(plt_cn, time, delta.oak.gmf, delta.oak.grow) %>% 
+  select(plt_cn, time, delta.oak.grow) %>% 
   filter(time < 20) %>%
   group_by(time) %>%
   summarize(meangrow = mean(delta.oak.grow),
@@ -556,7 +566,7 @@ addit_oaks = full_join(addit_oaks, fvs_getgmfs)
 write.csv(addit_oaks, "output/northeast_oaks_scenarios.csv", row.names=FALSE)
 write.csv(project.bau, "output/northeast_oaks_projectvbau_fia.csv", row.names = FALSE)
 
-mean(fvs_getgmfs$meangrow)
+
 
 png("figures/dynamicvsstatic_oaks_extendedrotation.png", 
     width=7,
@@ -585,9 +595,6 @@ mbbs <- mbbies %>%
   filter(!is.na(prev.plt.cn)) %>%
   mutate(get_removals = plyr::round_any(round(baac.remv, digits=2)*100, 5, f = floor),
          unitname = as.numeric(paste0(statecd, unitcd)))
-
-table(oaks$harvest)
-table(oaks$get_removals)
 
 #### Grow-only plots
 getgofc.mbbs <- mbbs %>%
@@ -688,7 +695,7 @@ allplots$plotnames = rownames(allplots)
 m.dists <- MatchIt::matchit(tx ~  elev + stdage.prev.prev.prev + rd.ac.over.prev.prev.prev + siteclcd + 
                               rd.ac.regen.prev.prev.prev + ecosubcd, data = allplots,
                             method="nearest", 
-                            distance="mahalanobis", replace=FALSE, ratio=20)
+                            distance="mahalanobis", replace=TRUE, ratio=10)
 
 ## Convert to a vetor
 matches <- as.data.frame(m.dists$match.matrix) 
@@ -701,8 +708,8 @@ matches <- as.data.frame(matches)
 
 ## Make longer
 matches <- matches %>%
-  pivot_longer(cols = c(V1:V20), names_to = "project", values_to = "matches") %>%
-  mutate(project = rep(allplots$plt_cn[allplots$tx==1], each=20))
+  pivot_longer(cols = c(V1:V10), names_to = "project", values_to = "matches") %>%
+  mutate(project = rep(allplots$plt_cn[allplots$tx==1], each=10))
 
 
 ## Append donor pool plt_cn to match dataframe
@@ -754,12 +761,11 @@ fvs_getgofs <- mbbfvs %>%
 
 addit_mbbs = full_join(addit_mbbs, fvs_getgofs)
 
-mean(fvs_getgofs$meangrow)
-mean(addit_mbbs$meangrow[addit_mbbs$method=="dynamic"]) ### 1.41
-mean(addit_mbbs$meangrow[addit_mbbs$method=="static"]) ### 4.07
+mean(addit_mbbs$meangrow[addit_mbbs$method=="dynamic"]) ### 1.36
+mean(addit_mbbs$meangrow[addit_mbbs$method=="static"]) ### 3.27
 
-mean(addit_oaks$meangrow[addit_oaks$method=="dynamic"]) ### 1.41
-mean(addit_oaks$meangrow[addit_oaks$method=="static"]) ### 3.25
+mean(addit_oaks$meangrow[addit_oaks$method=="dynamic"]) ### 1.55
+mean(addit_oaks$meangrow[addit_oaks$method=="static"]) ### 2.8
 
 write.csv(addit_mbbs, "output/northeast_mbbs_scenarios.csv", row.names=FALSE)
 write.csv(project.bau, "output/northeast_mbbs_projectvbau_fia.csv", row.names = FALSE)

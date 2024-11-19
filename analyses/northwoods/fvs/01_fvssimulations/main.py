@@ -17,14 +17,13 @@ oak_states = [OAK(state='mn'), OAK(state='wi'), OAK(state='mi')]
 
 # Build list of mbb scenario keyword files to simulate
 oak_kws = [KeywordFile('oak-grow'), 
-           KeywordFile('oak-bau'),
-           KeywordFile('oak-cut25')]
+           KeywordFile('oak-bau')]
 
 # Run FVS on each plot for each scenario in each state
 for state in tqdm(oak_states, desc='states', position=0, leave=False):
     for kw in tqdm(oak_kws, desc='keywords', position=1, leave=False):
         for plot in tqdm(state.plots, desc='plots', position=2, leave=False):
-            rtn = run(kw.publish(plot, state.state, 10))
+            rtn = run(kw.publish(plot, state.state))
 
 
 # ------------------------------------------------------------------------------
@@ -36,11 +35,10 @@ mbb_states = [MBB(state='mn'), MBB(state='wi'), MBB(state='mi')]
 
 # Build list of mbb scenario keyword files to simulate
 mbb_kws = [KeywordFile('mbb-grow'), 
-           KeywordFile('mbb-bau'), 
-           KeywordFile('mbb-cut25')]
+           KeywordFile('mbb-bau')]
 
 # Run FVS on each plot for each scenario in each state
 for state in tqdm(mbb_states, desc='states', position=0, leave=False):
     for kw in tqdm(mbb_kws, desc='keywords', position=1, leave=False):
         for plot in tqdm(state.plots, desc='plots', position=2, leave=False):
-            rtn = run(kw.publish(plot, state.state, 10))
+            rtn = run(kw.publish(plot, state.state))

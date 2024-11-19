@@ -33,7 +33,7 @@ class KeywordFile:
         with open(kw_path, 'r') as f:
             self.kw_template = Template(f.read())
 
-    def publish(self, plot_id: str, state: str, year: int) -> str:
+    def publish(self, plot_id: str, state: str) -> str: #, year: int
         """Publish the keyword file by injecting values into the template
 
         Args:
@@ -47,8 +47,7 @@ class KeywordFile:
 
         # Inject values in template
         kw_file = self.kw_template.substitute(
-            plot_id=plot_id, state=state.upper(),
-            year=year)
+            plot_id=plot_id, state=state.upper())
 
 
         return kw_file
