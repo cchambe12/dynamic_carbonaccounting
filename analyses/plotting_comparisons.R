@@ -17,6 +17,7 @@ library(bayesplot)
 library(ggplot2)
 library(dplyr)
 library(tidyr)
+library(broom.mixed)
 
 ## Set working directory
 setwd("~/Documents/git/dynamic_carbonaccounting/analyses/")
@@ -202,9 +203,9 @@ oaktime.p <- ggplot(dynamstat %>% filter(forestname == "Oak / hickory group") %>
   xlab("Years since project start") + ylab("Additional MtCO2e/ac/yr") + facet_wrap(~region)
 
 
-png("figures/dynamicvsstatic.png", 
-    width=10,
-    height=8, units="in", res = 350 )
+png("figures/method_compare_overtime.png", 
+    width=11,
+    height=7, units="in", res = 350 )
 mbbtime.p + oaktime.p +
   plot_layout(ncol = 2, nrow = 1, guides = "collect")
 dev.off()
@@ -265,13 +266,13 @@ qmd <- full_join(caqmd, neqmd) %>%
 diffmod <- brm(meangrow ~ BAremv + BAAC + ChangeQMD + SpDiversity + SiteClass + RdDist + SiteClass + 
                  OverstoryRD + UnderstoryRD + 
                  (1 | method), data=qmd,
-               chains = 2, control = list(adapt_delta = 0.99))
+               chains = 2, control = list(adapt_delta = 0.99), iter=3000, warmup=2000)
 
-library(broom.mixed)
+
 
 png("figures/table_standcharacteristics.png", 
-    width=6,
-    height=7, units="in", res = 350 )
+    width=5,
+    height=3, units="in", res = 350 )
 grid.arrange(diffmod %>% 
   tidy(conf.level = 0.89) %>%
   select(term, estimate, std.error, conf.low, conf.high) %>%
@@ -300,18 +301,19 @@ sjPlot::plot_model(diffmod, type = "re", ci.lvl = 0.89, colors=c("firebrick4", "
   geom_hline(yintercept=0, linetype="dotted", col="grey60")
 
 png("figures/modeloutput_covariates.png", 
-    width=6,
-    height=7, units="in", res = 350 )
+    width=4.5,
+    height=3, units="in", res = 250 )
 sjPlot::plot_model(diffmod, type = "est", ci.lvl = 0.89, colors=c("firebrick4", "blue4"),
                    title="Model estimate of additional MtCO2e/ac/yr", ci.style="bar",
                    sort.est = TRUE) + theme_classic() +
   geom_hline(yintercept=0, linetype="dotted", col="grey60")
 dev.off()
 
-
+##### Get model estimates
 qmd$modgrow <- as.data.frame(predict(diffmod))$Estimate
+qmd$sdgrow <- as.data.frame(predict(diffmod))$Est.Error
 
-
+### Prepare boxplot
 quantiles_89 <- function(x) {
   r <- quantile(x, probs=c(0.11, 0.25, 0.5, 0.75, 0.89))
   names(r) <- c("ymin", "lower", "middle", "upper", "ymax")
@@ -331,9 +333,113 @@ diffp <- ggplot(qmd %>% mutate(method = ifelse(method=="staticmean", "single mod
 
 png("figures/modeloutput_method.png", 
     width=5,
-    height=4, units="in", res = 350 )
+    height=4, units="in", res = 250 )
 diffp
 dev.off()
+
+
+### Report table with means and standard errors
+qmd <- qmd %>%
+  mutate(method = ifelse(method=="staticmean", "single model - static", 
+                       ifelse(method=="staticmean.comp", "blended model - static",
+                              ifelse(method=="static.blend", "blended model - dynamic", 
+                                     "measured composite - dynamic"))),
+         order = factor(method, levels=c('single model - static', 'blended model - static', 'blended model - dynamic', 'measured composite - dynamic')))
+
+
+png("figures/table_approachmeans.png", 
+    width=6,
+    height=2, units="in", res = 350 )
+grid.arrange(qmd %>%
+               select(order, modgrow, sdgrow) %>%
+               group_by(order) %>%
+               summarize(`Avg Mt CO2e/ac/yr` = round(mean(modgrow, na.rm=TRUE), digits=2),
+                         `SD Mt CO2e/ac/yr` = round(sd(modgrow), digits=2)) %>%
+               rename(Approach = order) %>%
+               tableGrob(theme = ttheme_default(
+                 core = list(bg_params=list(fill=c("grey90", "white"))),
+                 colhead = list(fg_params=list(col="white"),
+                                bg_params=list(fill="#084594"))), rows = NULL))
+dev.off()
+
+
+### Extras for more reporting in Results
+deltas <- qmd %>%
+  ungroup() %>%
+  select(forestname, region, modgrow) %>%
+  group_by(forestname, region) %>%
+  summarize(`Range Mt CO2e/ac/yr` = round(max(modgrow, na.rm=TRUE) - min(modgrow, na.rm=TRUE), digits=2))
+
+getfia <- full_join(caqmd, neqmd) %>%
+  full_join(nwqmd) %>%
+  full_join(saqmd) %>%
+  group_by(forestname, region) %>%
+  summarize(numplots = n())
+
+png("figures/table_regionforesttype.png", 
+    width=10,
+    height=3, units="in", res = 250 )
+grid.arrange(getfia %>% left_join(qmd %>%
+               select(forestname, region, modgrow) %>%
+               group_by(forestname, region) %>%
+               summarize(`Avg Mt CO2e/ac/yr` = round(mean(modgrow, na.rm=TRUE), digits=2),
+                         `SE Mt CO2e/ac/yr` = round(sd(modgrow)/sqrt(length(modgrow)), digits=2))) %>%
+               left_join(deltas) %>%
+               rename(`Forest Type` = forestname,
+                      Region = region,
+                      `# FIA plots` = numplots) %>%
+               tableGrob(theme = ttheme_default(
+                 core = list(bg_params=list(fill=c("grey90", "white"))),
+                 colhead = list(fg_params=list(col="white"),
+                                bg_params=list(fill="#084594"))), rows = NULL))
+dev.off()
+
+png("figures/foresttyperegion.png", 
+    width=5,
+    height=4, units="in", res =300 )
+ggplot(qmd %>%
+         select(forestname, region, modgrow) %>%
+         group_by(forestname, region) %>%
+         summarize(`Avg Mt CO2e/ac/yr` = round(mean(modgrow, na.rm=TRUE), digits=2),
+                   `SD Mt CO2e/ac/yr` = round(sd(modgrow)/sqrt(length(modgrow)), digits=2)) %>%
+         mutate(group = paste(forestname, region)),
+       aes(x=reorder(group, `Avg Mt CO2e/ac/yr`, decreasing = TRUE), y=`Avg Mt CO2e/ac/yr`, group=group, fill=group)) + geom_col() +
+  geom_errorbar(aes(ymin=`Avg Mt CO2e/ac/yr` - `SD Mt CO2e/ac/yr`, ymax = `Avg Mt CO2e/ac/yr` + `SD Mt CO2e/ac/yr`)) +
+  scale_fill_colorblind() + theme_bw() + theme(legend.position = "none") +
+  scale_x_discrete(guide = guide_axis(angle=45)) + xlab("")
+dev.off()
+
+
+png("figures/table_foresttype.png", 
+    width=6,
+    height=2, units="in", res = 350 )
+grid.arrange(qmd %>%
+               select(forestname, modgrow) %>%
+               group_by(forestname) %>%
+               summarize(`Avg Mt CO2e/ac/yr` = round(mean(modgrow, na.rm=TRUE), digits=2),
+                         `SE Mt CO2e/ac/yr` = round(sd(modgrow)/sqrt(length(modgrow)), digits=2)) %>%
+               rename(`Forest Type` = forestname) %>%
+               tableGrob(theme = ttheme_default(
+                 core = list(bg_params=list(fill=c("grey90", "white"))),
+                 colhead = list(fg_params=list(col="white"),
+                                bg_params=list(fill="#084594"))), rows = NULL))
+dev.off()
+
+png("figures/table_region.png", 
+    width=6,
+    height=2, units="in", res = 350 )
+grid.arrange(qmd %>%
+               select(region, modgrow) %>%
+               group_by(region) %>%
+               summarize(`Avg Mt CO2e/ac/yr` = round(mean(modgrow, na.rm=TRUE), digits=2),
+                         `SE Mt CO2e/ac/yr` = round(sd(modgrow)/sqrt(length(modgrow)), digits=2)) %>%
+               rename(Region = region) %>%
+               tableGrob(theme = ttheme_default(
+                 core = list(bg_params=list(fill=c("grey90", "white"))),
+                 colhead = list(fg_params=list(col="white"),
+                                bg_params=list(fill="#084594"))), rows = NULL))
+dev.off()
+
 
 ### Some relationship between removal rates and difference
 over.p <- ggplot(qmd, aes(x = rd.ac.over, y = modgrow)) +
@@ -374,8 +480,8 @@ methodtypemod <- brm(meangrow ~ modeled + static + composite +
                chains = 2, control = list(adapt_delta = 0.99))
 
 png("figures/table_approaches.png", 
-    width=6,
-    height=7, units="in", res = 350 )
+    width=5,
+    height=2, units="in", res = 350 )
 grid.arrange(methodtypemod %>% 
                tidy(conf.level = 0.89) %>%
                select(term, estimate, std.error, conf.low, conf.high) %>%
@@ -398,8 +504,8 @@ sjPlot::plot_model(methodtypemod, type = "est", ci.lvl = 0.89, colors=c("firebri
   geom_hline(yintercept=0, linetype="dotted", col="grey60")
 
 png("figures/typemodeloutput_covariates.png", 
-    width=6,
-    height=7, units="in", res = 350 )
+    width=4.5,
+    height=2.5, units="in", res = 250 )
 sjPlot::plot_model(methodtypemod, type = "est", ci.lvl = 0.89, colors=c("firebrick4", "blue4"),
                    title="Model estimate of additional MtCO2e/ac/yr", ci.style="bar",
                    sort.est = TRUE) + theme_classic() +
