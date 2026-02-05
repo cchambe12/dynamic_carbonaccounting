@@ -138,7 +138,7 @@ mbb.p <- ggplot(dynamstat %>% filter(forestname == "Maple / beech / birch group"
   ggtitle("a) Maple / beech / birch group") +
   geom_col(position = position_dodge()) + theme_bw() + theme(legend.position="none") +
   scale_fill_colorblind() + facet_wrap(~region) + xlab("") +
-  ylab("Avg additional Mt CO2e/ac/yr") + coord_cartesian(ylim=c(0,5)) +
+  ylab("Avg additional Mg CO2e/ac/yr") + coord_cartesian(ylim=c(0,5)) +
   geom_text(aes(label = round(meangrow, digits=2)), vjust=-0.25) + scale_x_discrete(guide = guide_axis(angle=45))
 
 oak.p <- ggplot(dynamstat %>% filter(forestname == "Oak / hickory group") %>%
@@ -154,7 +154,7 @@ oak.p <- ggplot(dynamstat %>% filter(forestname == "Oak / hickory group") %>%
   ggtitle("b) Oak / hickory group") +
   geom_col(position = position_dodge()) + theme_bw() + theme(legend.position="none") +
   scale_fill_colorblind() + facet_wrap(~region) + xlab("") +
-  ylab("Avg additional Mt CO2e/ac/yr") + coord_cartesian(ylim=c(0,5)) +
+  ylab("Avg additional Mg CO2e/ac/yr") + coord_cartesian(ylim=c(0,5)) +
   geom_text(aes(label = round(meangrow, digits=2)), vjust=-0.25) + scale_x_discrete(guide = guide_axis(angle=45))
 
 png("figures/method_compare.png", 
@@ -182,7 +182,7 @@ mbbtime.p <- ggplot(dynamstat %>% filter(forestname == "Maple / beech / birch gr
   geom_line(size=1.2) +
   ggtitle("a) Maple / beech / birch group") +
   theme_bw() + scale_color_colorblind(name="Method") + 
-  xlab("Years since project start") + ylab("Additional MtCO2e/ac/yr") + facet_wrap(~region)
+  xlab("Years since project start") + ylab("Additional Mg CO2e/ac/yr") + facet_wrap(~region)
 
 oaktime.p <- ggplot(dynamstat %>% filter(forestname == "Oak / hickory group") %>%
                       select(forestname, time, region, dynamic, staticmean, staticmean.comp, static.blend) %>%
@@ -200,7 +200,7 @@ oaktime.p <- ggplot(dynamstat %>% filter(forestname == "Oak / hickory group") %>
   geom_line(size=1.2) +
   ggtitle("b) Oak / hickory group") +
   theme_bw() + scale_color_colorblind(name="Method") + 
-  xlab("Years since project start") + ylab("Additional MtCO2e/ac/yr") + facet_wrap(~region)
+  xlab("Years since project start") + ylab("Additional Mg CO2e/ac/yr") + facet_wrap(~region)
 
 
 png("figures/method_compare_overtime.png", 
@@ -291,12 +291,12 @@ dev.off()
 
 ### Strongest drivers are thinning strategy and overstory relative density 
 sjPlot::plot_model(diffmod, type = "est", ci.lvl = 0.89, colors=c("firebrick4", "blue4"),
-                   title="Model estimate of additional MtCO2e/ac/yr", ci.style="bar",
+                   title="Model estimate of additional Mg CO2e/ac/yr", ci.style="bar",
                    sort.est = TRUE) + theme_classic() +
   geom_hline(yintercept=0, linetype="dotted", col="grey60")
 
 sjPlot::plot_model(diffmod, type = "re", ci.lvl = 0.89, colors=c("firebrick4", "blue4"),
-                   title="Model estimate of additional MtCO2e/ac/yr", ci.style="bar",
+                   title="Model estimate of additional Mg CO2e/ac/yr", ci.style="bar",
                    sort.est = TRUE, bpe="median") + theme_classic() +
   geom_hline(yintercept=0, linetype="dotted", col="grey60")
 
@@ -304,7 +304,7 @@ png("figures/modeloutput_covariates.png",
     width=4.5,
     height=3, units="in", res = 250 )
 sjPlot::plot_model(diffmod, type = "est", ci.lvl = 0.89, colors=c("firebrick4", "blue4"),
-                   title="Model estimate of additional MtCO2e/ac/yr", ci.style="bar",
+                   title="Model estimate of additional Mg CO2e/ac/yr", ci.style="bar",
                    sort.est = TRUE) + theme_classic() +
   geom_hline(yintercept=0, linetype="dotted", col="grey60")
 dev.off()
@@ -323,13 +323,13 @@ quantiles_89 <- function(x) {
 diffp <- ggplot(qmd %>% mutate(method = ifelse(method=="staticmean", "single model - static", 
                                   ifelse(method=="staticmean.comp", "blended model - static",
                                          ifelse(method=="static.blend", "blended model - dynamic", 
-                                                "measured composite - dynamic"))),
-                      order = factor(method, levels=c('single model - static', 'blended model - static', 'blended model - dynamic', 'measured composite - dynamic'))), 
+                                                "measured blended - dynamic"))),
+                      order = factor(method, levels=c('single model - static', 'blended model - static', 'blended model - dynamic', 'measured blended - dynamic'))), 
        aes(x=order, col=order, y=modgrow, group=order, fill=order)) + 
   stat_summary(fun.data = quantiles_89, geom="boxplot",
                width=0.1) + theme_bw() + scale_color_colorblind(name="Method") + 
   scale_fill_colorblind(name="Method") + theme(legend.position = "none") + 
-  scale_x_discrete(guide = guide_axis(angle=45)) + xlab("") + ylab("Model estimate of\nadditional MtCO2e/ac/yr")
+  scale_x_discrete(guide = guide_axis(angle=45)) + xlab("") + ylab("Model estimate of\nadditional Mg CO2e/ac/yr")
 
 png("figures/modeloutput_method.png", 
     width=5,
@@ -343,8 +343,8 @@ qmd <- qmd %>%
   mutate(method = ifelse(method=="staticmean", "single model - static", 
                        ifelse(method=="staticmean.comp", "blended model - static",
                               ifelse(method=="static.blend", "blended model - dynamic", 
-                                     "measured composite - dynamic"))),
-         order = factor(method, levels=c('single model - static', 'blended model - static', 'blended model - dynamic', 'measured composite - dynamic')))
+                                     "measured blended - dynamic"))),
+         order = factor(method, levels=c('single model - static', 'blended model - static', 'blended model - dynamic', 'measured blended - dynamic')))
 
 
 png("figures/table_approachmeans.png", 
@@ -353,8 +353,8 @@ png("figures/table_approachmeans.png",
 grid.arrange(qmd %>%
                select(order, modgrow, sdgrow) %>%
                group_by(order) %>%
-               summarize(`Avg Mt CO2e/ac/yr` = round(mean(modgrow, na.rm=TRUE), digits=2),
-                         `SD Mt CO2e/ac/yr` = round(sd(modgrow), digits=2)) %>%
+               summarize(`Avg Mg CO2e/ac/yr` = round(mean(modgrow, na.rm=TRUE), digits=2),
+                         `SD Mg CO2e/ac/yr` = round(sd(modgrow), digits=2)) %>%
                rename(Approach = order) %>%
                tableGrob(theme = ttheme_default(
                  core = list(bg_params=list(fill=c("grey90", "white"))),
@@ -368,7 +368,7 @@ deltas <- qmd %>%
   ungroup() %>%
   select(forestname, region, modgrow) %>%
   group_by(forestname, region) %>%
-  summarize(`Range Mt CO2e/ac/yr` = round(max(modgrow, na.rm=TRUE) - min(modgrow, na.rm=TRUE), digits=2))
+  summarize(`Range Mg CO2e/ac/yr` = round(max(modgrow, na.rm=TRUE) - min(modgrow, na.rm=TRUE), digits=2))
 
 getfia <- full_join(caqmd, neqmd) %>%
   full_join(nwqmd) %>%
@@ -382,8 +382,8 @@ png("figures/table_regionforesttype.png",
 grid.arrange(getfia %>% left_join(qmd %>%
                select(forestname, region, modgrow) %>%
                group_by(forestname, region) %>%
-               summarize(`Avg Mt CO2e/ac/yr` = round(mean(modgrow, na.rm=TRUE), digits=2),
-                         `SE Mt CO2e/ac/yr` = round(sd(modgrow)/sqrt(length(modgrow)), digits=2))) %>%
+               summarize(`Avg Mg CO2e/ac/yr` = round(mean(modgrow, na.rm=TRUE), digits=2),
+                         `SE Mg CO2e/ac/yr` = round(sd(modgrow)/sqrt(length(modgrow)), digits=2))) %>%
                left_join(deltas) %>%
                rename(`Forest Type` = forestname,
                       Region = region,
@@ -395,18 +395,18 @@ grid.arrange(getfia %>% left_join(qmd %>%
 dev.off()
 
 png("figures/foresttyperegion.png", 
-    width=5,
-    height=4, units="in", res =300 )
+    width=9,
+    height=7, units="in", res =350 )
 ggplot(qmd %>%
          select(forestname, region, modgrow) %>%
          group_by(forestname, region) %>%
-         summarize(`Avg Mt CO2e/ac/yr` = round(mean(modgrow, na.rm=TRUE), digits=2),
-                   `SD Mt CO2e/ac/yr` = round(sd(modgrow)/sqrt(length(modgrow)), digits=2)) %>%
+         summarize(`Avg Mg CO2e/ac/yr` = round(mean(modgrow, na.rm=TRUE), digits=2),
+                   `SD Mg CO2e/ac/yr` = round(sd(modgrow)/sqrt(length(modgrow)), digits=2)) %>%
          mutate(group = paste(forestname, region)),
-       aes(x=reorder(group, `Avg Mt CO2e/ac/yr`, decreasing = TRUE), y=`Avg Mt CO2e/ac/yr`, group=group, fill=group)) + geom_col() +
-  geom_errorbar(aes(ymin=`Avg Mt CO2e/ac/yr` - `SD Mt CO2e/ac/yr`, ymax = `Avg Mt CO2e/ac/yr` + `SD Mt CO2e/ac/yr`)) +
+       aes(x=reorder(group, `Avg Mg CO2e/ac/yr`, decreasing = TRUE), y=`Avg Mg CO2e/ac/yr`, group=group, fill=group)) + geom_col() +
+  geom_errorbar(aes(ymin=`Avg Mg CO2e/ac/yr` - `SD Mg CO2e/ac/yr`, ymax = `Avg Mg CO2e/ac/yr` + `SD Mg CO2e/ac/yr`)) +
   scale_fill_colorblind() + theme_bw() + theme(legend.position = "none") +
-  scale_x_discrete(guide = guide_axis(angle=45)) + xlab("")
+  scale_x_discrete(guide = guide_axis(angle=60)) + xlab("")
 dev.off()
 
 
@@ -416,8 +416,8 @@ png("figures/table_foresttype.png",
 grid.arrange(qmd %>%
                select(forestname, modgrow) %>%
                group_by(forestname) %>%
-               summarize(`Avg Mt CO2e/ac/yr` = round(mean(modgrow, na.rm=TRUE), digits=2),
-                         `SE Mt CO2e/ac/yr` = round(sd(modgrow)/sqrt(length(modgrow)), digits=2)) %>%
+               summarize(`Avg Mg CO2e/ac/yr` = round(mean(modgrow, na.rm=TRUE), digits=2),
+                         `SE Mg CO2e/ac/yr` = round(sd(modgrow)/sqrt(length(modgrow)), digits=2)) %>%
                rename(`Forest Type` = forestname) %>%
                tableGrob(theme = ttheme_default(
                  core = list(bg_params=list(fill=c("grey90", "white"))),
@@ -431,8 +431,8 @@ png("figures/table_region.png",
 grid.arrange(qmd %>%
                select(region, modgrow) %>%
                group_by(region) %>%
-               summarize(`Avg Mt CO2e/ac/yr` = round(mean(modgrow, na.rm=TRUE), digits=2),
-                         `SE Mt CO2e/ac/yr` = round(sd(modgrow)/sqrt(length(modgrow)), digits=2)) %>%
+               summarize(`Avg Mg CO2e/ac/yr` = round(mean(modgrow, na.rm=TRUE), digits=2),
+                         `SE Mg CO2e/ac/yr` = round(sd(modgrow)/sqrt(length(modgrow)), digits=2)) %>%
                rename(Region = region) %>%
                tableGrob(theme = ttheme_default(
                  core = list(bg_params=list(fill=c("grey90", "white"))),
@@ -444,17 +444,17 @@ dev.off()
 ### Some relationship between removal rates and difference
 over.p <- ggplot(qmd, aes(x = rd.ac.over, y = modgrow)) +
   geom_smooth(method="lm", formula=y~poly(x,2), col="red4", fill="red4") + theme_bw() +
-  ylab("Model estimate of\nadditional MtCO2e/ac/yr") + xlab("Overstory Relative Density") +
+  ylab("Model estimate of\nadditional Mg CO2e/ac/yr") + xlab("Overstory Relative Density") +
   ggtitle("a) Relative density of the overstory")
 
 siteclass.p <- ggplot(qmd, aes(x = siteclcd, y = modgrow)) +
   geom_smooth(method="lm", formula=y~poly(x,2), col="red4", fill="red4") + theme_bw() +
-  ylab("Model estimate of\nadditional MtCO2e/ac/yr") + xlab("Site Productivity Code") +
+  ylab("Model estimate of\nadditional Mg CO2e/ac/yr") + xlab("Site Productivity Code") +
   ggtitle("c) Site productivity code")
 
 remv.p <- ggplot(qmd, aes(x = fiabau, y = modgrow)) +
   geom_smooth(method="lm", formula=y~poly(x,2), col="red4", fill="red4") + theme_bw() +
-  ylab("Model estimate of\nadditional MtCO2e/ac/yr") + xlab("% BA removed in common practice") +
+  ylab("Model estimate of\nadditional Mg CO2e/ac/yr") + xlab("% BA removed in common practice") +
   ggtitle("b) % BA removed\nin common practice")
 
 
@@ -469,14 +469,14 @@ dev.off()
 ################################################################################
 ################ Run the Bayesian Model for approach characteristics ###########
 qmd <- qmd %>%
-  mutate(modeled = ifelse(method=="dynamic", 0, 1),
-         static = ifelse(method %in% c("staticmean", "staticmean.comp"), 1, 0),
-         composite = ifelse(method == "staticmean", 0 , 1),
+  mutate(modeled = ifelse(method %in% c("measured blended - dynamic"), 0, 1),
+         static = ifelse(method %in% c("single model - static", "blended model - static"), 1, 0),
+         composite = ifelse(method %in% c("single model - static"), 0 , 1),
          group = paste(forestname, region))
 
 
 methodtypemod <- brm(meangrow ~ modeled + static + composite +
-                       (modeled + static + composite | group), data=qmd,
+                       (modeled + static + composite | group), data=qmd, 
                chains = 2, control = list(adapt_delta = 0.99))
 
 png("figures/table_approaches.png", 
@@ -499,7 +499,7 @@ dev.off()
 
 ### Strongest drivers are thinning strategy and overstory relative density 
 sjPlot::plot_model(methodtypemod, type = "est", ci.lvl = 0.89, colors=c("firebrick4", "blue4"),
-                   title="Model estimate of additional MtCO2e/ac/yr", ci.style="bar",
+                   title="Model estimate of additional Mg CO2e/ac/yr", ci.style="bar",
                    sort.est = TRUE) + theme_classic() +
   geom_hline(yintercept=0, linetype="dotted", col="grey60")
 
@@ -507,7 +507,7 @@ png("figures/typemodeloutput_covariates.png",
     width=4.5,
     height=2.5, units="in", res = 250 )
 sjPlot::plot_model(methodtypemod, type = "est", ci.lvl = 0.89, colors=c("firebrick4", "blue4"),
-                   title="Model estimate of additional MtCO2e/ac/yr", ci.style="bar",
+                   title="Model estimate of additional Mg CO2e/ac/yr", ci.style="bar",
                    sort.est = TRUE) + theme_classic() +
   geom_hline(yintercept=0, linetype="dotted", col="grey60")
 dev.off()
@@ -521,16 +521,11 @@ quantiles_89 <- function(x) {
   r
 }
 
-typep <- ggplot(qmd %>% mutate(method = ifelse(method=="staticmean", "single model - static", 
-                                               ifelse(method=="staticmean.comp", "blended model - static",
-                                                      ifelse(method=="static.blend", "blended model - dynamic", 
-                                                             "measured composite - dynamic"))),
-                               order = factor(method, levels=c('single model - static', 'blended model - static', 'blended model - dynamic', 'measured composite - dynamic'))), 
-                aes(x=order, col=order, y=methodtype, group=order, fill=order)) + 
+typep <- ggplot(qmd, aes(x=order, col=order, y=methodtype, group=order, fill=order)) + 
   stat_summary(fun.data = quantiles_89, geom="boxplot",
                width=0.1) + theme_bw() + scale_color_colorblind(name="Method") + 
   scale_fill_colorblind(name="Method") + theme(legend.position = "none") + 
-  scale_x_discrete(guide = guide_axis(angle=45)) + xlab("") + ylab("Model estimate of\nadditional MtCO2e/ac/yr")
+  scale_x_discrete(guide = guide_axis(angle=45)) + xlab("") + ylab("Model estimate of\nadditional Mg CO2e/ac/yr")
 
 png("figures/modeloutput_type.png", 
     width=5,
@@ -541,21 +536,21 @@ dev.off()
 ### Some relationship between removal rates and difference
 modp <- ggplot(qmd, aes(x = modeled, y = methodtype)) +
   geom_smooth(method="lm", col="red4", fill="red4") + theme_bw() +
-  ylab("Model estimate of\nadditional MtCO2e/ac/yr") + xlab("") + coord_cartesian(ylim=c(0.5, 2.25)) +
+  ylab("Model estimate of\nadditional Mg CO2e/ac/yr") + xlab("") + coord_cartesian(ylim=c(0.5, 2.25)) +
   scale_x_continuous(breaks=c(0, 1), labels=c("Measured", "Modeled"),
                      guide=guide_axis(angle=45)) +
   ggtitle("a) Measured vs Modeled")
 
 staticp <- ggplot(qmd, aes(x = static, y = methodtype)) +
   geom_smooth(method="lm", col="red4", fill="red4") + theme_bw() +
-  ylab("Model estimate of\nadditional MtCO2e/ac/yr") + xlab("") + coord_cartesian(ylim=c(0.5, 2.25)) +
+  ylab("Model estimate of\nadditional Mg CO2e/ac/yr") + xlab("") + coord_cartesian(ylim=c(0.5, 2.25)) +
   scale_x_continuous(breaks=c(0, 1), labels=c("Dynamic", "Static"),
                      guide=guide_axis(angle=45)) +
   ggtitle("b) Dynamic vs Static")
 
 compositep <- ggplot(qmd, aes(x = composite*-1, y = methodtype)) +
   geom_smooth(method="lm", col="red4", fill="red4") + theme_bw() +
-  ylab("Model estimate of\nadditional MtCO2e/ac/yr") + xlab("") + coord_cartesian(ylim=c(0.5, 2.25)) +
+  ylab("Model estimate of\nadditional Mg CO2e/ac/yr") + xlab("") + coord_cartesian(ylim=c(0.5, 2.25)) +
   scale_x_continuous(breaks=c(0, -1), labels=c("Single BAU", "Composite BAU"),
                      guide=guide_axis(angle=45)) +
   ggtitle("c) Composite/Blended vs\n100% harvest likelihood")

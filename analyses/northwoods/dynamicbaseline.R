@@ -441,6 +441,8 @@ randomsubset.gof <- sample(unique(getgof.oaks$plt_cn), 10)
 getgof.oaks.final <- getgof.oaks %>%
   filter(plt_cn %in% randomsubset.gof)
 
+write.csv(getgof.oaks.final, "output/oak_gof_plots.csv", row.names = FALSE)
+
 #### Finally, entire BAU
 donorpoolc.oaks <- oaks %>%
   select(plt_cn, totalc, totalc.prev, totalc.prev.prev, totalc.prev.prev.prev,
@@ -474,6 +476,8 @@ donorpool.oaks <- left_join(donorpoolc.oaks, donorpoolt.oaks) %>%
 
 donorpool.oaks.final <- donorpool.oaks %>%
   filter(!plt_cn %in% c(randomsubset.gof))
+
+write.csv(donorpool.oaks.final, "output/oak_donorpool_plots.csv", row.names = FALSE)
 
 #### Run matching code
 pltstomatch.oaks <- donorpool.oaks.final %>%
@@ -637,6 +641,8 @@ randomsubset.gof <- sample(unique(getgof.mbbs$plt_cn), 5)
 getgof.mbbs.final <- getgof.mbbs %>%
   filter(plt_cn %in% randomsubset.gof)
 
+write.csv(getgof.mbbs.final, "output/mbb_gof_plots.csv", row.names = FALSE)
+
 
 #### Finally, entire BAU
 donorpoolc.mbbs <- mbbs %>%
@@ -671,6 +677,8 @@ donorpool.mbbs <- left_join(donorpoolc.mbbs, donorpoolt.mbbs) %>%
 
 donorpool.mbbs.final <- donorpool.mbbs %>%
   filter(!plt_cn %in% c(randomsubset.gof))
+
+write.csv(donorpool.mbbs.final, "output/mbb_donorpool_plots.csv", row.names = FALSE)
 
 #### Find Matches to each plot in GOF scenario
 ### Do some matching

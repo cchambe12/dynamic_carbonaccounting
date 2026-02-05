@@ -445,6 +445,7 @@ randomsubset.gof <- sample(unique(getgof.oaks$plt_cn), 10)
 getgof.oaks.final <- getgof.oaks %>%
   filter(plt_cn %in% randomsubset.gof)
 
+write.csv(getgof.oaks.final, "output/oak_gof_plots.csv", row.names = FALSE)
 
 #### Finally, entire BAU
 donorpoolc.oaks <- oaks %>%
@@ -480,6 +481,8 @@ donorpool.oaks <- left_join(donorpoolc.oaks, donorpoolt.oaks) %>%
 donorpool.oaks.final <- donorpool.oaks %>%
   filter(!plt_cn %in% c(randomsubset.gof))
 
+write.csv(donorpool.oaks.final, "output/oak_donorpool_plots.csv", row.names = FALSE)
+
 #### Find Matches to each plot in GOF scenario
 ### Do some matching
 ### Match the sites with the potential controls
@@ -499,6 +502,7 @@ allplots <- rbind(pltstomatch.oaks, pltstochoose.oaksgof) %>%
 
 allplots$plotnames = rownames(allplots)
 
+write.csv(allplots, "output/dynamic_matchedplots_oak.csv", row.names = FALSE)
 
 # Use the MatchIt package in R to calculate Mahalanobis distances for each pairwise comparison of treat x control plot
 m.dists <- MatchIt::matchit(tx ~  elev + stdage.prev.prev.prev + rd.ac.over.prev.prev.prev + siteclcd + 
@@ -651,6 +655,7 @@ randomsubset.gof <- sample(unique(getgof.mbbs$plt_cn), 10)
 getgof.mbbs.final <- getgof.mbbs %>%
   filter(plt_cn %in% randomsubset.gof)
 
+write.csv(getgof.mbbs.final, "output/mbb_gof_plots.csv", row.names = FALSE)
 
 #### Finally, entire BAU
 donorpoolc.mbbs <- mbbs %>%
@@ -686,6 +691,8 @@ donorpool.mbbs <- left_join(donorpoolc.mbbs, donorpoolt.mbbs) %>%
 donorpool.mbbs.final <- donorpool.mbbs %>%
   filter(!plt_cn %in% c(randomsubset.gof))
 
+write.csv(donorpool.mbbs.final, "output/mbb_donorpool_plots.csv", row.names = FALSE)
+
 #### Find Matches to each plot in GOF scenario
 ### Do some matching
 ### Match the sites with the potential controls
@@ -703,6 +710,8 @@ allplots <- rbind(pltstomatch.mbbs, pltstochoose.mbbsgof) %>%
   na.omit() 
 
 allplots$plotnames = rownames(allplots)
+
+write.csv(allplots, "output/dynamic_matchedplots_mbb.csv", row.names = FALSE)
 
 
 # Use the MatchIt package in R to calculate Mahalanobis distances for each pairwise comparison of treat x control plot
