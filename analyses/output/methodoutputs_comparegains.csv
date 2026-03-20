@@ -1,0 +1,33 @@
+"region","forestname","method","average_gains","se_gains"
+"Central Apps","Maple / beech / birch group","blended model - dynamic",0.846104438021664,0.0709905606652399
+"Central Apps","Maple / beech / birch group","blended model - static",1.97902049786056,0.111214081588388
+"Central Apps","Maple / beech / birch group","measured blended - dynamic",1.08596341721761,0.31475359996099
+"Central Apps","Maple / beech / birch group","single model - static",3.07813386962729,0.140723691498464
+"Central Apps","Oak / hickory group","blended model - dynamic",0.408735874875522,0.0545314303176772
+"Central Apps","Oak / hickory group","blended model - static",1.2264736775237,0.0728341117495578
+"Central Apps","Oak / hickory group","measured blended - dynamic",1.38164859270272,0.432860566058704
+"Central Apps","Oak / hickory group","single model - static",2.19632061436522,0.167919222653462
+"Northeast","Maple / beech / birch group","blended model - dynamic",0.725757682736045,0.176706718313509
+"Northeast","Maple / beech / birch group","blended model - static",1.74362148139647,0.210801592971946
+"Northeast","Maple / beech / birch group","measured blended - dynamic",1.00562668482786,0.446143740037271
+"Northeast","Maple / beech / birch group","single model - static",2.1223628731891,0.357335798995964
+"Northeast","Oak / hickory group","blended model - dynamic",0.512464491184475,0.0795809732786069
+"Northeast","Oak / hickory group","blended model - static",1.32022982208062,0.159842422153457
+"Northeast","Oak / hickory group","measured blended - dynamic",0.523198108217516,0.432644384708704
+"Northeast","Oak / hickory group","single model - static",2.42178954133051,0.345607505963946
+"Northwoods","Maple / beech / birch group","blended model - dynamic",0.730871816162569,0.0736156945660163
+"Northwoods","Maple / beech / birch group","blended model - static",1.14165796955206,0.219479905801886
+"Northwoods","Maple / beech / birch group","measured blended - dynamic",0.307674673433891,0.559645839213546
+"Northwoods","Maple / beech / birch group","single model - static",1.72641273038833,0.248259879269402
+"Northwoods","Oak / hickory group","blended model - dynamic",0.947357612594304,0.0918417646017521
+"Northwoods","Oak / hickory group","blended model - static",1.13003463712526,0.16864424307193
+"Northwoods","Oak / hickory group","measured blended - dynamic",0.721059451872666,0.478644633899596
+"Northwoods","Oak / hickory group","single model - static",2.51823708313318,0.239901368050341
+"Southern Apps","Maple / beech / birch group","blended model - dynamic",0.379756233535168,0.0584910295566234
+"Southern Apps","Maple / beech / birch group","blended model - static",0.736558098434216,0.200724348916946
+"Southern Apps","Maple / beech / birch group","measured blended - dynamic",0.731398848801522,1.30642097819147
+"Southern Apps","Maple / beech / birch group","single model - static",1.33910227519553,0.212075520610704
+"Southern Apps","Oak / hickory group","blended model - dynamic",0.509879601561975,0.0737466689585764
+"Southern Apps","Oak / hickory group","blended model - static",0.69139621759717,0.0882095797598248
+"Southern Apps","Oak / hickory group","measured blended - dynamic",1.15862289203328,2.2706510744175
+"Southern Apps","Oak / hickory group","single model - static",1.80812506510054,0.186131480721691

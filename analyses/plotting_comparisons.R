@@ -154,7 +154,7 @@ oak.p <- ggplot(dynamstat %>% filter(forestname == "Oak / hickory group") %>%
   ggtitle("b) Oak / hickory group") +
   geom_col(position = position_dodge()) + theme_bw() + theme(legend.position="none") +
   scale_fill_colorblind() + facet_wrap(~region) + xlab("") +
-  ylab("Avg additional Mg CO2e/ac/yr") + coord_cartesian(ylim=c(0,5)) +
+  ylab("") + coord_cartesian(ylim=c(0,5)) +
   geom_text(aes(label = round(meangrow, digits=2)), vjust=-0.25) + scale_x_discrete(guide = guide_axis(angle=45))
 
 png("figures/method_compare.png", 
@@ -166,7 +166,8 @@ dev.off()
 
 ################################################################################
 ################### Look at differences over time ##############################
-mbbtime.p <- ggplot(dynamstat %>% filter(forestname == "Maple / beech / birch group") %>%
+mbbtime.p <- ggplot(dynamstat %>% 
+                      filter(forestname == "Maple / beech / birch group", time > 0) %>%
                       select(forestname, time, region, dynamic, staticmean, staticmean.comp, static.blend) %>%
                       pivot_longer(cols=c(dynamic:static.blend), names_to = "method", values_to = "meangrow") %>%
                       ungroup() %>%
@@ -176,15 +177,16 @@ mbbtime.p <- ggplot(dynamstat %>% filter(forestname == "Maple / beech / birch gr
                       group_by(method, region, forestname) %>%
                       mutate(method = ifelse(method=="staticmean", "single model - static", 
                                              ifelse(method=="staticmean.comp", "blended model - static",
-                                                    ifelse(method=="static.blend", "blended model - dynamic", "measured composite - dynamic"))),
-                             order = factor(method, levels=c('single model - static', 'blended model - static', 'blended model - dynamic', 'measured composite - dynamic'))), 
+                                                    ifelse(method=="static.blend", "blended model - dynamic", "measured blended - dynamic"))),
+                             order = factor(method, levels=c('single model - static', 'blended model - static', 'blended model - dynamic', 'measured blended - dynamic'))), 
                     aes(x=time, y=meangrow, col=order, fill=order)) +
   geom_line(size=1.2) +
   ggtitle("a) Maple / beech / birch group") +
   theme_bw() + scale_color_colorblind(name="Method") + 
-  xlab("Years since project start") + ylab("Additional Mg CO2e/ac/yr") + facet_wrap(~region)
+  xlab("Years since project start") + ylab("Additional Mg CO2e/ac/yr") + facet_wrap(~region, scales = "fixed")
 
-oaktime.p <- ggplot(dynamstat %>% filter(forestname == "Oak / hickory group") %>%
+oaktime.p <- ggplot(dynamstat %>% 
+                      filter(forestname == "Oak / hickory group", time > 0) %>%
                       select(forestname, time, region, dynamic, staticmean, staticmean.comp, static.blend) %>%
                       pivot_longer(cols=c(dynamic:static.blend), names_to = "method", values_to = "meangrow") %>%
                       ungroup() %>%
@@ -194,13 +196,13 @@ oaktime.p <- ggplot(dynamstat %>% filter(forestname == "Oak / hickory group") %>
                       group_by(method, region, forestname) %>%
                       mutate(method = ifelse(method=="staticmean", "single model - static", 
                                              ifelse(method=="staticmean.comp", "blended model - static",
-                                                    ifelse(method=="static.blend", "blended model - dynamic", "measured composite - dynamic"))),
-                             order = factor(method, levels=c('single model - static', 'blended model - static', 'blended model - dynamic', 'measured composite - dynamic'))), 
+                                                    ifelse(method=="static.blend", "blended model - dynamic", "measured blended - dynamic"))),
+                             order = factor(method, levels=c('single model - static', 'blended model - static', 'blended model - dynamic', 'measured blended - dynamic'))), 
                     aes(x=time, y=meangrow, col=order, fill=order)) +
   geom_line(size=1.2) +
   ggtitle("b) Oak / hickory group") +
   theme_bw() + scale_color_colorblind(name="Method") + 
-  xlab("Years since project start") + ylab("Additional Mg CO2e/ac/yr") + facet_wrap(~region)
+  xlab("Years since project start") + ylab("") + facet_wrap(~region, scales = "fixed")
 
 
 png("figures/method_compare_overtime.png", 
@@ -345,6 +347,13 @@ qmd <- qmd %>%
                               ifelse(method=="static.blend", "blended model - dynamic", 
                                      "measured blended - dynamic"))),
          order = factor(method, levels=c('single model - static', 'blended model - static', 'blended model - dynamic', 'measured blended - dynamic')))
+
+averages_compare <- qmd %>%
+  group_by(region, forestname, method) %>%
+  summarize(average_gains = mean(meangrow, na.rm = TRUE),
+            se_gains = sd(meangrow, na.rm = TRUE)/sqrt(n()))
+
+write.csv(averages_compare, "output/methodoutputs_comparegains.csv", row.names = FALSE)
 
 
 png("figures/table_approachmeans.png", 
