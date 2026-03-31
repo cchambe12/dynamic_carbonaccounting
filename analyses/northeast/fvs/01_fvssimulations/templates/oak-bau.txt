@@ -17,6 +17,12 @@ $state
 TimeInt          0          5
 NumCycle         6
 
+! Specify output database
+DataBase
+DSNOut
+./output/oak.sqlite
+End
+
 ! Specify input data
 DataBase
 DSNIN
@@ -29,12 +35,6 @@ TreeSQL
 SELECT * FROM FVS_TREEINIT_PLOT
 WHERE Stand_CN = '%Stand_CN%'
 EndSQL
-End
-
-! Specify output database
-DataBase
-DSNOut
-./output/oak.sqlite
 End
 
 ! FVS base output tables

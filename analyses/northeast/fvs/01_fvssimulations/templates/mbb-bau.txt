@@ -17,6 +17,12 @@ $state
 TimeInt          0          5
 NumCycle         6
 
+! Specify output database
+DataBase
+DSNOut
+./output/mbb.sqlite
+End
+
 ! Specify input data
 DataBase
 DSNIN
@@ -31,11 +37,6 @@ WHERE Stand_CN = '%Stand_CN%'
 EndSQL
 End
 
-! Specify output database
-DataBase
-DSNOut
-./output/mbb.sqlite
-End
 
 ! FVS base output tables
 TREELIST         0          0

@@ -46,8 +46,7 @@ class KeywordFile:
         """
 
         # Inject values in template
-        kw_file = self.kw_template.substitute(
-            plot_id=plot_id, state=state.upper())
+        kw_file = self.kw_template.safe_substitute(plot_id=plot_id, state=state.upper())
 
         return kw_file
 
@@ -57,6 +56,7 @@ def run(kwfile: str) -> int:
 
     Args:
         kwfile (str): Keyword file
+        
 
     Returns:
         int: FVS status code
@@ -64,16 +64,21 @@ def run(kwfile: str) -> int:
 
     # Set the path to the FVS lake states variant executable
     #exepath = './open-fvs2/trunk/bin/FVSls.exe'
-    exepath = '/Users/c.chamberlain/Documents/git/ForestVegetationSimulator-Interface-Main/bin/FVSsn'
+    exepath = '/Users/CatherineChamberlain/Documents/git/ForestVegetationSimulator/bin/FVSne'
 
+    # Build environment, disabling denormal FP exception trapping
+    env = os.environ.copy()
+    env['GFORTRAN_CONVERT_UNIT'] = 'native'
+ 
     # Write the keyword file to disk
     with open('./input/tmp.key', 'w') as f:
         f.write(kwfile)
-
+ 
     # Run FVS and fetch stop code
     stdout = subprocess.run(
         [exepath, f'--keywordfile=./input/tmp.key'], stdout=subprocess.DEVNULL,
-        stderr=subprocess.STDOUT)
+        stderr=subprocess.STDOUT,
+        env=env)
 
     # Return the FVS status code
     return stdout.returncode

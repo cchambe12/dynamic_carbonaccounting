@@ -50,7 +50,6 @@ scenario_d = c(methods$average_gains[methods$method=="measured blended - dynamic
 
 estimate_c <- data.frame(
   region_ft = region_ft,
-  totalplots = totalplots,
   scenario_a = scenario_a,
   scenario_b = scenario_b,
   scenario_c = scenario_c,
@@ -64,7 +63,7 @@ estimate_c <- estimate_c %>%
          totalc_scenarioc = ifm_ac * scenario_c,
          prop_scenarioc = totalc_scenarioc/totalc_scenarioa,
          totalc_scenariod = ifm_ac * scenario_d,
-         prop_scenariod = totalc_scenariod/totalc_scenarioa,)
+         prop_scenariod = totalc_scenariod/totalc_scenarioa)
 
 averages_scenarios <- estimate_c %>%
   summarize(mean_scenarioa = mean(totalc_scenarioa),

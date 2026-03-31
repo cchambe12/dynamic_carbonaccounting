@@ -17,24 +17,23 @@ $state
 TimeInt          0          5
 NumCycle         6
 
+! Specify output database first so FVS registers it before DBSSTANDIN
+! triggers DBSCASE and locks in the default FVSOut.db
+DataBase
+DSNOut
+./output/mbb.sqlite
+End
+
 ! Specify input data
 DataBase
 DSNIN
 ./db/FIADB_${state}.db
 StandSQL
-SELECT * FROM FVS_STANDINIT_PLOT
-WHERE Stand_CN = '%Stand_CN%'
+SELECT * FROM FVS_STANDINIT_PLOT WHERE Stand_CN = '%Stand_CN%'
 EndSQL
 TreeSQL
-SELECT * FROM FVS_TREEINIT_PLOT
-WHERE Stand_CN = '%Stand_CN%'
+SELECT * FROM FVS_TREEINIT_PLOT WHERE Stand_CN = '%Stand_CN%'
 EndSQL
-End
-
-! Specify output database
-DataBase
-DSNOut
-./output/mbb.sqlite
 End
 
 ! FVS base output tables
@@ -64,20 +63,7 @@ CARBREDB         2
 SUMMARY
 COMPUTDB
 End
-END
 
-! Conditionally thin throughout if BA target is met 
-! since previous harvest during contract
-IF
-BBA GE 50 
-THEN
-! The BA target is not always met due to the lower limit on the eligible diameter range
-ThinDBH         0    PARMS(0, 999, 1, All, 0, BAtarget) 
-ENDIF
-
-! Process the simulation
-PROCESS
-STOP
 
 ! Process the simulation
 PROCESS
