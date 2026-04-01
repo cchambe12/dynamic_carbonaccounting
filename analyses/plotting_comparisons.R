@@ -97,10 +97,10 @@ fvs <- allfvs %>%
   filter(time < 20) %>%
   pivot_longer(cols = c(delta.oak.grow:delta.mbb.grow.comp.blend), names_to = "method", values_to = "deltac") %>%
   na.omit() %>%
-  mutate(method = ifelse(substr(method, nchar(method)-4, nchar(method))==".comp", "static.comp", 
-                         ifelse(substr(method, nchar(method)-5, nchar(method))==".blend", "static.blend", "static"))) %>%
+  mutate(method = ifelse(substr(method, nchar(method)-4, nchar(method))==".comp", "static.blend", 
+                         ifelse(substr(method, nchar(method)-5, nchar(method))==".blend", "dynamic.blend", "static"))) %>%
   pivot_wider(names_from=method, values_from=deltac) %>%
-  select(plt_cn, time, forestname, region, baac.remv, static, static.comp, static.blend) %>%
+  select(plt_cn, time, forestname, region, baac.remv, static, static.blend, dynamic.blend) %>%
   rename(fvsbau = baac.remv)
 
 
@@ -109,30 +109,22 @@ fvs <- allfvs %>%
 dynamstat <- left_join(allplots, fvs) %>%
   ungroup() %>%
   group_by(plt_cn, forestname, region) %>%
-  mutate(staticmean = ifelse(time > 0, mean(static, na.rm=TRUE), static),
-         staticmean.comp = ifelse(time > 0, mean(static.comp, na.rm=TRUE), static.comp),
-         diff = staticmean - dynamic,
-         diff.comp = staticmean.comp - dynamic) %>%
-  ungroup() %>%
-  group_by(forestname, region) %>%
-  mutate(staticmean.grouped = mean(staticmean, na.rm=TRUE),
-         staticmean.grouped.comp = mean(staticmean.comp, na.rm=TRUE),
-         dynamic.grouped = mean(dynamic, na.rm=TRUE),
-         diff.grouped = staticmean.grouped - dynamic.grouped,
-         diff.grouped.comp = staticmean.grouped.comp - dynamic.grouped)
+  mutate(static = ifelse(time > 0, mean(static, na.rm=TRUE), static),
+         static.blend = ifelse(time > 0, mean(static.blend, na.rm=TRUE), static.blend)) %>%
+  ungroup()
 
 
 #################################################################################
 ################### Plotting differences in averages ############################
 #################################################################################
 mbb.p <- ggplot(dynamstat %>% filter(forestname == "Maple / beech / birch group") %>%
-                  select(forestname, region, dynamic, staticmean, staticmean.comp, static.blend) %>%
-                  pivot_longer(cols=c(dynamic:static.blend), names_to = "method", values_to = "meangrow") %>%
+                  select(forestname, region, dynamic, static, static.blend, dynamic.blend) %>%
+                  pivot_longer(cols=c(dynamic:dynamic.blend), names_to = "method", values_to = "meangrow") %>%
                   group_by(forestname, region, method) %>%
                   summarize(meangrow = mean(meangrow, na.rm=TRUE)) %>%
-                  mutate(method = ifelse(method=="staticmean", "single model - static", 
-                                         ifelse(method=="staticmean.comp", "blended model - static",
-                                                ifelse(method=="static.blend", "blended model - dynamic", "measured composite - dynamic"))),
+                  mutate(method = ifelse(method=="static", "single model - static", 
+                                         ifelse(method=="static.blend", "blended model - static",
+                                                ifelse(method=="dynamic.blend", "blended model - dynamic", "measured composite - dynamic"))),
                          order = factor(method, levels=c('single model - static', 'blended model - static', 'blended model - dynamic', 'measured composite - dynamic'))), 
                 aes(x=order, y=meangrow, group=order, fill=order)) +
   ggtitle("a) Maple / beech / birch group") +
@@ -142,13 +134,13 @@ mbb.p <- ggplot(dynamstat %>% filter(forestname == "Maple / beech / birch group"
   geom_text(aes(label = round(meangrow, digits=2)), vjust=-0.25) + scale_x_discrete(guide = guide_axis(angle=45))
 
 oak.p <- ggplot(dynamstat %>% filter(forestname == "Oak / hickory group") %>%
-                  select(forestname, region, dynamic, staticmean, staticmean.comp, static.blend) %>%
-                  pivot_longer(cols=c(dynamic:static.blend), names_to = "method", values_to = "meangrow") %>%
+                  select(forestname, region, dynamic, static, static.blend, dynamic.blend) %>%
+                  pivot_longer(cols=c(dynamic:dynamic.blend), names_to = "method", values_to = "meangrow") %>%
                   group_by(forestname, region, method) %>%
                   summarize(meangrow = mean(meangrow, na.rm=TRUE)) %>%
-                  mutate(method = ifelse(method=="staticmean", "single model - static", 
-                                         ifelse(method=="staticmean.comp", "blended model - static",
-                                                ifelse(method=="static.blend", "blended model - dynamic", "measured composite - dynamic"))),
+                  mutate(method = ifelse(method=="static", "single model - static", 
+                                         ifelse(method=="static.blend", "blended model - static",
+                                                ifelse(method=="dynamic.blend", "blended model - dynamic", "measured composite - dynamic"))),
                          order = factor(method, levels=c('single model - static', 'blended model - static', 'blended model - dynamic', 'measured composite - dynamic'))), 
                 aes(x=order, y=meangrow, group=order, fill=order)) +
   ggtitle("b) Oak / hickory group") +
@@ -168,16 +160,16 @@ dev.off()
 ################### Look at differences over time ##############################
 mbbtime.p <- ggplot(dynamstat %>% 
                       filter(forestname == "Maple / beech / birch group", time > 0) %>%
-                      select(forestname, time, region, dynamic, staticmean, staticmean.comp, static.blend) %>%
-                      pivot_longer(cols=c(dynamic:static.blend), names_to = "method", values_to = "meangrow") %>%
+                      select(forestname, time, region, dynamic, static, static.blend, dynamic.blend) %>%
+                      pivot_longer(cols=c(dynamic:dynamic.blend), names_to = "method", values_to = "meangrow") %>%
                       ungroup() %>%
                       group_by(time, method, region, forestname) %>%
                       summarize(meangrow = mean(meangrow, na.rm=TRUE)) %>%
                       ungroup() %>%
                       group_by(method, region, forestname) %>%
-                      mutate(method = ifelse(method=="staticmean", "single model - static", 
-                                             ifelse(method=="staticmean.comp", "blended model - static",
-                                                    ifelse(method=="static.blend", "blended model - dynamic", "measured blended - dynamic"))),
+                      mutate(method = ifelse(method=="static", "single model - static", 
+                                             ifelse(method=="static.blend", "blended model - static",
+                                                    ifelse(method=="dynamic.blend", "blended model - dynamic", "measured blended - dynamic"))),
                              order = factor(method, levels=c('single model - static', 'blended model - static', 'blended model - dynamic', 'measured blended - dynamic'))), 
                     aes(x=time, y=meangrow, col=order, fill=order)) +
   geom_line(size=1.2) +
@@ -187,16 +179,16 @@ mbbtime.p <- ggplot(dynamstat %>%
 
 oaktime.p <- ggplot(dynamstat %>% 
                       filter(forestname == "Oak / hickory group", time > 0) %>%
-                      select(forestname, time, region, dynamic, staticmean, staticmean.comp, static.blend) %>%
-                      pivot_longer(cols=c(dynamic:static.blend), names_to = "method", values_to = "meangrow") %>%
+                      select(forestname, time, region, dynamic, static, static.blend, dynamic.blend) %>%
+                      pivot_longer(cols=c(dynamic:dynamic.blend), names_to = "method", values_to = "meangrow") %>%
                       ungroup() %>%
                       group_by(time, method, region, forestname) %>%
                       summarize(meangrow = mean(meangrow, na.rm=TRUE)) %>%
                       ungroup() %>%
                       group_by(method, region, forestname) %>%
-                      mutate(method = ifelse(method=="staticmean", "single model - static", 
-                                             ifelse(method=="staticmean.comp", "blended model - static",
-                                                    ifelse(method=="static.blend", "blended model - dynamic", "measured blended - dynamic"))),
+                      mutate(method = ifelse(method=="static", "single model - static", 
+                                             ifelse(method=="static.blend", "blended model - static",
+                                                    ifelse(method=="dynamic.blend", "blended model - dynamic", "measured blended - dynamic"))),
                              order = factor(method, levels=c('single model - static', 'blended model - static', 'blended model - dynamic', 'measured blended - dynamic'))), 
                     aes(x=time, y=meangrow, col=order, fill=order)) +
   geom_line(size=1.2) +
@@ -244,9 +236,9 @@ saqmd <- read.csv("southernapps/output/clean_southernapps_fiadata.csv") %>%
 qmd <- full_join(caqmd, neqmd) %>%
   full_join(nwqmd) %>%
   full_join(saqmd) %>%
-  right_join(dynamstat %>% select(plt_cn, forestname, region, dynamic, staticmean, staticmean.comp, 
-                                  static.blend, fiabau) %>%
-               pivot_longer(cols=c(dynamic:static.blend), names_to = "method", values_to = "meangrow") %>%
+  right_join(dynamstat %>% select(plt_cn, forestname, region, dynamic, static, static.blend, 
+                                  dynamic.blend, fiabau) %>%
+               pivot_longer(cols=c(dynamic:dynamic.blend), names_to = "method", values_to = "meangrow") %>%
                ungroup() %>%
                group_by(plt_cn, method, region, forestname, fiabau) %>%
                summarize(meangrow = mean(meangrow))) %>%
@@ -322,9 +314,9 @@ quantiles_89 <- function(x) {
   r
 }
 
-diffp <- ggplot(qmd %>% mutate(method = ifelse(method=="staticmean", "single model - static", 
-                                  ifelse(method=="staticmean.comp", "blended model - static",
-                                         ifelse(method=="static.blend", "blended model - dynamic", 
+diffp <- ggplot(qmd %>% mutate(method = ifelse(method=="static", "single model - static", 
+                                  ifelse(method=="static.blend", "blended model - static",
+                                         ifelse(method=="dynamic.blend", "blended model - dynamic", 
                                                 "measured blended - dynamic"))),
                       order = factor(method, levels=c('single model - static', 'blended model - static', 'blended model - dynamic', 'measured blended - dynamic'))), 
        aes(x=order, col=order, y=modgrow, group=order, fill=order)) + 
@@ -342,9 +334,9 @@ dev.off()
 
 ### Report table with means and standard errors
 qmd <- qmd %>%
-  mutate(method = ifelse(method=="staticmean", "single model - static", 
-                       ifelse(method=="staticmean.comp", "blended model - static",
-                              ifelse(method=="static.blend", "blended model - dynamic", 
+  mutate(method = ifelse(method=="static", "single model - static", 
+                       ifelse(method=="static.blend", "blended model - static",
+                              ifelse(method=="dynamic.blend", "blended model - dynamic", 
                                      "measured blended - dynamic"))),
          order = factor(method, levels=c('single model - static', 'blended model - static', 'blended model - dynamic', 'measured blended - dynamic')))
 

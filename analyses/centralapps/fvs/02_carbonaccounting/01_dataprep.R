@@ -22,7 +22,7 @@ setwd("~/Documents/git/dynamic_carbonaccounting/analyses/centralapps/fvs/02_carb
 datafolder <- "~/Documents/git/dynamic_carbonaccounting/analyses/centralapps/fvs/02_carbonaccounting/output/"
 
 ## Are you assessing Maple / beech / birch or Oak / hickory? If Oak / Hickory then say TRUE
-useoak <- TRUE
+useoak <- FALSE
 
 
 ##################### Saving key files ###################
@@ -48,13 +48,13 @@ tables <- dbListTables(con)
 #summary table
 summary <- dbGetQuery(conn=con, 
                       statement=paste("SELECT * FROM '",
-                                      tables[[match("FVS_Summary_East",tables)]],
+                                      tables[[match("FVS_Summary",tables)]],
                                       "'", sep=""))
 
 #cut list
 cut <- dbGetQuery(conn=con, 
                   statement=paste("SELECT * FROM '", 
-                                  tables[[match("FVS_CutList_East",tables)]],
+                                  tables[[match("FVS_CutList",tables)]],
                                   "'", sep=""))
 
 #Get the lookup for Stand_CN
@@ -84,7 +84,7 @@ carb <- dbGetQuery(conn=con,
 #Tree list
 tl <- dbGetQuery(conn=con, 
                  statement=paste("SELECT * FROM '",
-                                 tables[[match("FVS_TreeList_East",tables)]], 
+                                 tables[[match("FVS_TreeList",tables)]], 
                                  "'", sep=""))
 
 #Disconnect the database
