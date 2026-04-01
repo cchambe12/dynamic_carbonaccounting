@@ -1,8 +1,8 @@
-#### Clean up scenarios using FIA and FVS
+#### Clean all scenarios using FIA and FVS
 ### Randomly select 10 FIA plots from 20 years ago for each region and forest type
 ### Match to the most similar plots and then monitor growth over and harvests over time
 
-### Can we estimate additional emmission reductions and removals?
+### Can we estimate additional emission reductions and removals?
 
 ### housekeeping
 rm(list=ls()) 
@@ -15,8 +15,8 @@ library(plotly)
 library(viridis)
 library(RColorBrewer)
 library(dplyr)
-library(sf)
 library(tidyr)
+library(sf)
 library(gridExtra)
 library(lme4)
 library("ggsci")
@@ -24,16 +24,16 @@ library(rFIA)
 library(optmatch)
 
 ### Set the working directory
-setwd("~/Documents/git/dynamic_carbonaccounting/analyses/centralapps/")
+setwd("~/Documents/git/dynamic_carbonaccounting/analyses/southernapps/")
 
 
 #################################################################################
 #################### STEP 1 - Establish input varibles and ROI ##################
 ## Input variables to standardize approach across regions
-states <- c("MD", "OH", "PA", "WV") 
-region <- "centralapps"  
+states <- c("AL", "GA", "KY", "NC", "SC", "TN", "VA") 
+region <- "southernapps"  
 
-ecosubstokeep <- c("211", "221", "222", "M221")
+ecosubstokeep <- c("221", "223", "231", "M221")
 
 
 ### Organize these in alphabetical order to have consistent and accurate outputs
@@ -218,7 +218,7 @@ trees <- left_join(tree, cond, by=c("plt_cn", "invyr", "statecd", "countycd", "u
 allplot = allplot %>%
   filter(invyr > 1997) %>%
   dplyr::select("cn", "ecosubcd", "statecd", "countycd", "unitcd", "lat", "lon", "elev", 
-                "measmon", "measday", "measyear", "remper", "kindcd", "p2panel", "qa_status", "designcd", "rddistcd") %>% 
+                "measmon", "measday", "measyear", "remper", "kindcd", "p2panel", "qa_status", "designcd") %>% 
   mutate(ecosub = substr(ecosubcd, 1, nchar(ecosubcd)-2),
          countyid = paste(statecd, countycd),
          measdate = as.Date(paste(measmon, measday, measyear, sep="-"), format="%m-%d-%Y")) %>%
@@ -376,9 +376,6 @@ datclean <- dat_initial %>%
          stdorgcd == 0,
          (invyr - invyr.prev) <= mean(invyr - invyr.prev, na.rm=TRUE) + 2)
 
-datclean$harvest <- ifelse(datclean$trtcd1 == 10 | 
-                             datclean$baac.perc.cut >= 0.25 & datclean$dstrbcd1 == 0 |
-                             !is.na(datclean$harvest_type1_srs), 1, 0) 
 
 datclean$harvest <- ifelse(datclean$trtcd1 == 10 | 
                              datclean$baac.perc.cut >= 0.25 & datclean$dstrbcd1 == 0 |
@@ -445,8 +442,6 @@ randomsubset.gof <- sample(unique(getgof.oaks$plt_cn), 10)
 getgof.oaks.final <- getgof.oaks %>%
   filter(plt_cn %in% randomsubset.gof)
 
-write.csv(getgof.oaks.final, "output/oak_gof_plots.csv", row.names = FALSE)
-
 #### Finally, entire BAU
 donorpoolc.oaks <- oaks %>%
   select(plt_cn, totalc, totalc.prev, totalc.prev.prev, totalc.prev.prev.prev,
@@ -481,12 +476,7 @@ donorpool.oaks <- left_join(donorpoolc.oaks, donorpoolt.oaks) %>%
 donorpool.oaks.final <- donorpool.oaks %>%
   filter(!plt_cn %in% c(randomsubset.gof))
 
-write.csv(donorpool.oaks.final, "output/oak_donorpool_plots.csv", row.names = FALSE)
-
-#### Find Matches to each plot in GOF scenario
-### Do some matching
-### Match the sites with the potential controls
-#### For GOF
+#### Run matching code
 pltstomatch.oaks <- donorpool.oaks.final %>%
   select(-totalc, -year, -mean.deltac, -deltac, -time) %>%
   distinct() %>%
@@ -502,7 +492,6 @@ allplots <- rbind(pltstomatch.oaks, pltstochoose.oaksgof) %>%
 
 allplots$plotnames = rownames(allplots)
 
-write.csv(allplots, "output/dynamic_matchedplots_oak.csv", row.names = FALSE)
 
 # Use the MatchIt package in R to calculate Mahalanobis distances for each pairwise comparison of treat x control plot
 m.dists <- MatchIt::matchit(tx ~  elev + stdage.prev.prev.prev + rd.ac.over.prev.prev.prev + siteclcd + 
@@ -558,7 +547,7 @@ addit_oakgof <- project.bau %>%
 
 addit_oaks <- addit_oakgof %>%
   mutate(forestname = "Oak / hickory group",
-         region = "Central Apps",
+         region = "Southern Apps",
          method = "dynamic") 
 
 ######## Compare to a static baseline
@@ -569,19 +558,14 @@ fvs_getgmfs <- oakfvs %>%
   summarize(meangrow = mean(delta.oak.grow),
          segrow = sd(delta.oak.grow)) %>%
   mutate(forestname = "Oak / hickory group",
-         region = "Central Apps",
+         region = "Southern Apps",
          method = "static")
 
 addit_oaks = full_join(addit_oaks, fvs_getgmfs)
 
-mean(fvs_getgmfs$meangrow)
+write.csv(addit_oaks, "output/southernapps_oaks_scenarios.csv", row.names = FALSE)
+write.csv(project.bau, "output/southernapps_oaks_projectvbau_fia.csv", row.names = FALSE)
 
-ggplot(addit_oaks, aes(x=time, y=meangrow, col=method, fill=method)) +
-  geom_ribbon(aes(ymin=meangrow-segrow, ymax=meangrow+segrow), alpha=0.3) +
-  theme_bw() + scale_color_d3(palette="category20c") + scale_fill_d3(palette="category20c")
-
-write.csv(addit_oaks, "output/centralapps_oaks_scenarios.csv", row.names=FALSE)
-write.csv(project.bau, "output/centralapps_oaks_projectvbau_fia.csv", row.names = FALSE)
 
 png("figures/dynamicvsstatic_oaks_extendedrotation.png", 
     width=7,
@@ -591,7 +575,7 @@ ggplot(addit_oaks %>%
        aes(x=time, y=meangrow, col=method, fill=method)) +
   #geom_ribbon(aes(ymin=meangrow-segrow, ymax=meangrow+segrow), alpha=0.3) +
   geom_line() +
-  ggtitle("a) Central Apps: Oak / Hickory group") +
+  ggtitle("h) Southern Apps: Oak / Hickory group") +
   theme_bw() + scale_color_d3(palette="category20c", name="Method") + scale_fill_d3(palette="category20c", name="Method") +
   xlab("Years since project start") + ylab("Additional MtCO2e/ac/yr")
 dev.off()
@@ -602,17 +586,19 @@ dev.off()
 ### Select GOF type plots
 ###################################################################################################
 ###################################################################################################
+set.seed(11122024)
 mbbies <- datclean %>%
   filter(forestname == "Maple / beech / birch group", 
          plt_cn %in% unique(mbbfvs$plt_cn))
+
+length(mbbies$plt_cn)
 
 mbbs <- mbbies %>%
   filter(!is.na(prev.plt.cn)) %>%
   mutate(get_removals = plyr::round_any(round(baac.remv, digits=2)*100, 5, f = floor),
          unitname = as.numeric(paste0(statecd, unitcd)))
 
-table(oaks$harvest)
-table(oaks$get_removals)
+
 
 #### Grow-only plots
 getgofc.mbbs <- mbbs %>%
@@ -655,7 +641,6 @@ randomsubset.gof <- sample(unique(getgof.mbbs$plt_cn), 10)
 getgof.mbbs.final <- getgof.mbbs %>%
   filter(plt_cn %in% randomsubset.gof)
 
-write.csv(getgof.mbbs.final, "output/mbb_gof_plots.csv", row.names = FALSE)
 
 #### Finally, entire BAU
 donorpoolc.mbbs <- mbbs %>%
@@ -691,8 +676,6 @@ donorpool.mbbs <- left_join(donorpoolc.mbbs, donorpoolt.mbbs) %>%
 donorpool.mbbs.final <- donorpool.mbbs %>%
   filter(!plt_cn %in% c(randomsubset.gof))
 
-write.csv(donorpool.mbbs.final, "output/mbb_donorpool_plots.csv", row.names = FALSE)
-
 #### Find Matches to each plot in GOF scenario
 ### Do some matching
 ### Match the sites with the potential controls
@@ -710,8 +693,6 @@ allplots <- rbind(pltstomatch.mbbs, pltstochoose.mbbsgof) %>%
   na.omit() 
 
 allplots$plotnames = rownames(allplots)
-
-write.csv(allplots, "output/dynamic_matchedplots_mbb.csv", row.names = FALSE)
 
 
 # Use the MatchIt package in R to calculate Mahalanobis distances for each pairwise comparison of treat x control plot
@@ -768,7 +749,7 @@ addit_mbbgof <- project.bau %>%
 
 addit_mbbs <- addit_mbbgof %>%
   mutate(forestname = "Maple / beech / birch group",
-         region = "Central Apps",
+         region = "Southern Apps",
          method = "dynamic") 
 
 ######## Compare to a static baseline
@@ -779,19 +760,21 @@ fvs_getgofs <- mbbfvs %>%
   summarize(meangrow = mean(delta.mbb.grow),
             segrow = sd(delta.mbb.grow)) %>%
   mutate(forestname = "Maple / beech / birch group",
-         region = "Central Apps",
+         region = "Southern Apps",
          method = "static")
 
 addit_mbbs = full_join(addit_mbbs, fvs_getgofs)
 
-mean(addit_mbbs$meangrow[addit_mbbs$method=="dynamic"]) ### 1.3
-mean(addit_mbbs$meangrow[addit_mbbs$method=="static"]) ### 3.77
 
-mean(addit_oaks$meangrow[addit_oaks$method=="dynamic"]) ### 1.03
-mean(addit_oaks$meangrow[addit_oaks$method=="static"]) ### 3.19
+mean(addit_mbbs$meangrow[addit_mbbs$method=="dynamic"]) ### 0.90
+mean(addit_mbbs$meangrow[addit_mbbs$method=="static"]) ### 1.08
 
-write.csv(addit_mbbs, "output/centralapps_mbbs_scenarios.csv", row.names=FALSE)
-write.csv(project.bau, "output/centralapps_mbbs_projectvbau_fia.csv", row.names = FALSE)
+mean(addit_oaks$meangrow[addit_oaks$method=="dynamic"]) ### 0.09
+mean(addit_oaks$meangrow[addit_oaks$method=="static"]) ### 2.28
+
+write.csv(addit_mbbs, "output/southernapps_mbbs_scenarios.csv", row.names = FALSE)
+write.csv(project.bau, "output/southernapps_mbbs_projectvbau_fia.csv", row.names = FALSE)
+
 
 png("figures/dynamicvsstatic_mbbs_extendedrotation.png", 
     width=7,
@@ -801,7 +784,7 @@ ggplot(addit_mbbs %>%
        aes(x=time, y=meangrow, col=method, fill=method)) +
   #geom_ribbon(aes(ymin=meangrow-segrow, ymax=meangrow+segrow), alpha=0.3) +
   geom_line() +
-  ggtitle("b) Central Apps: Maple / beech / birch group") +
+  ggtitle("i) Southern Apps: Maple / beech / birch group") +
   theme_bw() + scale_color_d3(palette="category20c", name="Method") + scale_fill_d3(palette="category20c", name="Method") +
   xlab("Years since project start") + ylab("Additional MtCO2e/ac/yr")
 dev.off()

@@ -109,7 +109,7 @@ tl <- read.csv(paste0(datafolder, "tl", "_", i, ".csv")) %>%
 
 #### Check on Counties included
 ## Add in FIPS
-fips <- read.csv("~/Documents/git/tnc_baselines/analyses/input/fips.csv")
+fips <- read.csv("../../../input/fips.csv")
 fips$statecd <- as.numeric(substr(fips$FIPS, 1, nchar(fips$FIPS)-3))
 fips$countycd <- as.numeric(substr(fips$FIPS, nchar(fips$FIPS)-2, nchar(fips$FIPS)))
 
