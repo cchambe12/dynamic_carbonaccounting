@@ -1,6 +1,8 @@
 ##### Very quick script to plot all additionality figures in one place
 ## Started 12 November 2024 by Cat
 
+##### CAT TO WORK ON LINES 266 onward!!! 1 May 2026
+
 ### housekeeping
 rm(list=ls()) 
 options(stringsAsFactors = FALSE)
@@ -26,26 +28,38 @@ setwd("~/Documents/git/dynamic_carbonaccounting/analyses/")
 ################ Load in all data and prepare plots ############################
 #################################################################################
 cappsoak <- read.csv("centralapps/output/centralapps_oaks_projectvbau_fia.csv") %>%
-  mutate(forestname = "Oak / hickory group", region = "Central Apps")
+  mutate(forestname = "Oak / hickory group", region = "Central Apps") %>%
+  filter(!is.na(time))
 cappsmbb <- read.csv("centralapps/output/centralapps_mbbs_projectvbau_fia.csv") %>%
-  mutate(forestname = "Maple / beech / birch group", region = "Central Apps")
+  mutate(forestname = "Maple / beech / birch group", region = "Central Apps") %>%
+  filter(!is.na(time))
 
 neoak <- read.csv("northeast/output/northeast_oaks_projectvbau_fia.csv") %>%
-  mutate(forestname = "Oak / hickory group", region = "Northeast")
+  mutate(forestname = "Oak / hickory group", region = "Northeast") %>%
+  filter(!is.na(time))
 nembb <- read.csv("northeast/output/northeast_mbbs_projectvbau_fia.csv") %>%
-  mutate(forestname = "Maple / beech / birch group", region = "Northeast")
+  mutate(forestname = "Maple / beech / birch group", region = "Northeast") %>%
+  filter(!is.na(time))
 
 nwoak <- read.csv("northwoods/output/northwoods_oaks_projectvbau_fia.csv") %>%
-  mutate(forestname = "Oak / hickory group", region = "Northwoods")
+  mutate(forestname = "Oak / hickory group", region = "Northwoods") %>%
+  filter(!is.na(time))
 nwmbb <- read.csv("northwoods/output/northwoods_mbbs_projectvbau_fia.csv") %>%
-  mutate(forestname = "Maple / beech / birch group", region = "Northwoods")
+  mutate(forestname = "Maple / beech / birch group", region = "Northwoods") %>%
+  filter(!is.na(time))
 
 sappsoak <- read.csv("southernapps/output/southernapps_oaks_projectvbau_fia.csv") %>%
-  mutate(forestname = "Oak / hickory group", region = "Southern Apps")
+  mutate(forestname = "Oak / hickory group", region = "Southern Apps") %>%
+  filter(!is.na(time))
 sappsmbb <- read.csv("southernapps/output/southernapps_mbbs_projectvbau_fia.csv") %>%
-  mutate(forestname = "Maple / beech / birch group", region = "Southern Apps")
+  mutate(forestname = "Maple / beech / birch group", region = "Southern Apps") %>%
+  filter(!is.na(time))
 
-allplots <- full_join(cappsoak, cappsmbb) %>%
+##### NOTE 29 April 2026 by Cat
+### NEED TO SPLIT FIABAU by each approach!! ####
+### And clean up to make sure consistent PLT_CNs ### 
+
+allmeasured <- full_join(cappsoak, cappsmbb) %>%
   full_join(neoak) %>%
   full_join(nembb) %>%
   full_join(nwoak) %>%
@@ -53,12 +67,16 @@ allplots <- full_join(cappsoak, cappsmbb) %>%
   full_join(sappsoak) %>%
   full_join(sappsmbb) %>%
   ungroup() %>%
-  group_by(project, time) %>%
-  mutate(dynamic = deltac - mean(deltac.bau)) %>%
+  group_by(plt_cn, time, method) %>%
+  mutate(addit = deltac - mean(deltac.bau)) %>%
   distinct() %>%
-  select(project, time, forestname, region, baac.remv.bau, dynamic) %>%
-  rename(fiabau = baac.remv.bau,
-         plt_cn = project)
+  select(plt_cn, time, method, forestname, region, baac.remv.bau, addit) %>%
+  rename(fiabau = baac.remv.bau) %>%
+  pivot_wider(names_from = method, values_from = c(addit, fiabau)) %>%
+  rename(dynamic.matched = addit_dynamic,
+         dynamic.unmatched = `addit_dynamic - unmatched`,
+         fiabau.matched = fiabau_dynamic,
+         fiabau.unmatced = `fiabau_dynamic - unmatched`)
 
 ################################################################################
 #### Get FVS outputs
@@ -104,9 +122,9 @@ fvs <- allfvs %>%
   rename(fvsbau = baac.remv)
 
 
-#### Bring static and dynamic together
-## First try merging by plt_cn if possible
-dynamstat <- left_join(allplots, fvs) %>%
+#### Bring modeled and "measured" together
+## First try merging by plt_cn if possible - this should ensure we're only using the same "project" plots
+allscenarios <- left_join(allmeasured, fvs) %>%
   ungroup() %>%
   group_by(plt_cn, forestname, region) %>%
   mutate(static = ifelse(time > 0, mean(static, na.rm=TRUE), static),
@@ -117,37 +135,61 @@ dynamstat <- left_join(allplots, fvs) %>%
 #################################################################################
 ################### Plotting differences in averages ############################
 #################################################################################
-mbb.p <- ggplot(dynamstat %>% filter(forestname == "Maple / beech / birch group") %>%
-                  select(forestname, region, dynamic, static, static.blend, dynamic.blend) %>%
-                  pivot_longer(cols=c(dynamic:dynamic.blend), names_to = "method", values_to = "meangrow") %>%
+mbb.p <- ggplot(allscenarios %>% filter(forestname == "Maple / beech / birch group") %>%
+                  select(forestname, region, dynamic.matched, dynamic.unmatched, static, static.blend, dynamic.blend) %>%
+                  pivot_longer(cols=c(dynamic.matched:dynamic.blend), 
+                               names_to = "method", values_to = "meangrow") %>%
+                  mutate(meangrow = meangrow * 2.47) %>%
                   group_by(forestname, region, method) %>%
-                  summarize(meangrow = mean(meangrow, na.rm=TRUE)) %>%
+                  summarize(segrow = sd(meangrow)/sqrt(length(meangrow)),
+                            meangrow = mean(meangrow, na.rm=TRUE)) %>%
                   mutate(method = ifelse(method=="static", "single model - static", 
                                          ifelse(method=="static.blend", "blended model - static",
-                                                ifelse(method=="dynamic.blend", "blended model - dynamic", "measured composite - dynamic"))),
-                         order = factor(method, levels=c('single model - static', 'blended model - static', 'blended model - dynamic', 'measured composite - dynamic'))), 
-                aes(x=order, y=meangrow, group=order, fill=order)) +
+                                                ifelse(method=="dynamic.blend", "blended model - dynamic", 
+                                                       ifelse(method=="dynamic.matched", 
+                                                              "blended measured - dynamic matched", 
+                                                              "blended measured - dynamic")))),
+                         order = factor(method, levels=c('single model - static', 'blended model - static', 
+                                                         'blended model - dynamic', 'blended measured - dynamic', 
+                                                         'blended measured - dynamic matched'))), 
+                aes(x=order, y=meangrow, group=order, fill=order, col=order)) +
   ggtitle("a) Maple / beech / birch group") +
-  geom_col(position = position_dodge()) + theme_bw() + theme(legend.position="none") +
-  scale_fill_colorblind() + facet_wrap(~region) + xlab("") +
-  ylab("Avg additional Mg CO2e/ac/yr") + coord_cartesian(ylim=c(0,5)) +
-  geom_text(aes(label = round(meangrow, digits=2)), vjust=-0.25) + scale_x_discrete(guide = guide_axis(angle=45))
+  geom_col(position = position_dodge()) + 
+  geom_errorbar(aes(ymin = meangrow - segrow, ymax = meangrow + segrow), width=0.2) +
+  theme_bw() + theme(legend.position="none") +
+  scale_fill_colorblind() + scale_color_colorblind() +  
+  facet_wrap(~region) + xlab("") +
+  ylab("Avg additional Mg CO2e/ha/yr") + coord_cartesian(ylim=c(-1,8)) +
+  geom_text(aes(label = round(meangrow, digits=2)), vjust=-1.75, col="red4") + 
+  scale_x_discrete(guide = guide_axis(angle=45))
 
-oak.p <- ggplot(dynamstat %>% filter(forestname == "Oak / hickory group") %>%
-                  select(forestname, region, dynamic, static, static.blend, dynamic.blend) %>%
-                  pivot_longer(cols=c(dynamic:dynamic.blend), names_to = "method", values_to = "meangrow") %>%
+oak.p <- ggplot(allscenarios %>% filter(forestname == "Oak / hickory group") %>%
+                  select(forestname, region, dynamic.matched, dynamic.unmatched, static, static.blend, dynamic.blend) %>%
+                  pivot_longer(cols=c(dynamic.matched:dynamic.blend), 
+                               names_to = "method", values_to = "meangrow") %>%
+                  mutate(meangrow = meangrow * 2.47) %>%
                   group_by(forestname, region, method) %>%
-                  summarize(meangrow = mean(meangrow, na.rm=TRUE)) %>%
+                  summarize(segrow = sd(meangrow)/sqrt(length(meangrow)),
+                            meangrow = mean(meangrow, na.rm=TRUE)) %>%
                   mutate(method = ifelse(method=="static", "single model - static", 
                                          ifelse(method=="static.blend", "blended model - static",
-                                                ifelse(method=="dynamic.blend", "blended model - dynamic", "measured composite - dynamic"))),
-                         order = factor(method, levels=c('single model - static', 'blended model - static', 'blended model - dynamic', 'measured composite - dynamic'))), 
-                aes(x=order, y=meangrow, group=order, fill=order)) +
+                                                ifelse(method=="dynamic.blend", "blended model - dynamic", 
+                                                       ifelse(method=="dynamic.matched", 
+                                                              "blended measured - dynamic matched", 
+                                                              "blended measured - dynamic")))),
+                         order = factor(method, levels=c('single model - static', 'blended model - static', 
+                                                         'blended model - dynamic', 'blended measured - dynamic', 
+                                                         'blended measured - dynamic matched'))),  
+                aes(x=order, y=meangrow, group=order, fill=order, col=order)) +
   ggtitle("b) Oak / hickory group") +
-  geom_col(position = position_dodge()) + theme_bw() + theme(legend.position="none") +
-  scale_fill_colorblind() + facet_wrap(~region) + xlab("") +
-  ylab("") + coord_cartesian(ylim=c(0,5)) +
-  geom_text(aes(label = round(meangrow, digits=2)), vjust=-0.25) + scale_x_discrete(guide = guide_axis(angle=45))
+  geom_col(position = position_dodge()) + 
+  geom_errorbar(aes(ymin = meangrow - segrow, ymax = meangrow + segrow), width=0.2) +
+  theme_bw() + theme(legend.position="none") +
+  scale_fill_colorblind() + scale_color_colorblind() + 
+  facet_wrap(~region) + xlab("") +
+  ylab("") + coord_cartesian(ylim=c(-1,8)) +
+  geom_text(aes(label = round(meangrow, digits=2)), vjust=-1.75, col="red4") + 
+  scale_x_discrete(guide = guide_axis(angle=45))
 
 png("figures/method_compare.png", 
     width=10,
@@ -158,39 +200,55 @@ dev.off()
 
 ################################################################################
 ################### Look at differences over time ##############################
-mbbtime.p <- ggplot(dynamstat %>% 
+mbbtime.p <- ggplot(allscenarios %>% 
                       filter(forestname == "Maple / beech / birch group", time > 0) %>%
-                      select(forestname, time, region, dynamic, static, static.blend, dynamic.blend) %>%
-                      pivot_longer(cols=c(dynamic:dynamic.blend), names_to = "method", values_to = "meangrow") %>%
+                      select(plt_cn,forestname, time, region, dynamic.matched, dynamic.unmatched, static, static.blend, dynamic.blend) %>%
+                      pivot_longer(cols=c(dynamic.matched:dynamic.blend), names_to = "method", values_to = "meangrow") %>%
                       ungroup() %>%
+                      mutate(meangrow = meangrow * 2.47) %>%
+                      group_by(plt_cn, method, region, forestname) %>%
+                      mutate(totgrow = cumsum(meangrow)) %>%
                       group_by(time, method, region, forestname) %>%
-                      summarize(meangrow = mean(meangrow, na.rm=TRUE)) %>%
+                      summarize(totgrow = mean(totgrow, na.rm = TRUE)) %>%
                       ungroup() %>%
                       group_by(method, region, forestname) %>%
                       mutate(method = ifelse(method=="static", "single model - static", 
                                              ifelse(method=="static.blend", "blended model - static",
-                                                    ifelse(method=="dynamic.blend", "blended model - dynamic", "measured blended - dynamic"))),
-                             order = factor(method, levels=c('single model - static', 'blended model - static', 'blended model - dynamic', 'measured blended - dynamic'))), 
-                    aes(x=time, y=meangrow, col=order, fill=order)) +
+                                                    ifelse(method=="dynamic.blend", "blended model - dynamic", 
+                                                           ifelse(method=="dynamic.matched", 
+                                                                  "blended measured - dynamic matched", 
+                                                                  "blended measured - dynamic")))),
+                             order = factor(method, levels=c('single model - static', 'blended model - static', 
+                                                             'blended model - dynamic', 'blended measured - dynamic', 
+                                                             'blended measured - dynamic matched'))), 
+                    aes(x=time, y=totgrow, col=order, fill=order)) +
   geom_line(size=1.2) +
   ggtitle("a) Maple / beech / birch group") +
   theme_bw() + scale_color_colorblind(name="Method") + 
-  xlab("Years since project start") + ylab("Additional Mg CO2e/ac/yr") + facet_wrap(~region, scales = "fixed")
+  xlab("Years since project start") + ylab("Cumulative additional Mg CO2e/ha/yr") + facet_wrap(~region, scales = "fixed")
 
-oaktime.p <- ggplot(dynamstat %>% 
+oaktime.p <- ggplot(allscenarios %>% 
                       filter(forestname == "Oak / hickory group", time > 0) %>%
-                      select(forestname, time, region, dynamic, static, static.blend, dynamic.blend) %>%
-                      pivot_longer(cols=c(dynamic:dynamic.blend), names_to = "method", values_to = "meangrow") %>%
+                      select(plt_cn, forestname, time, region, dynamic.matched, dynamic.unmatched, static, static.blend, dynamic.blend) %>%
+                      pivot_longer(cols=c(dynamic.matched:dynamic.blend), names_to = "method", values_to = "meangrow") %>%
                       ungroup() %>%
+                      mutate(meangrow = meangrow * 2.47) %>%
+                      group_by(plt_cn, method, region, forestname) %>%
+                      mutate(totgrow = cumsum(meangrow)) %>%
                       group_by(time, method, region, forestname) %>%
-                      summarize(meangrow = mean(meangrow, na.rm=TRUE)) %>%
+                      summarize(totgrow = mean(totgrow, na.rm = TRUE)) %>%
                       ungroup() %>%
                       group_by(method, region, forestname) %>%
                       mutate(method = ifelse(method=="static", "single model - static", 
                                              ifelse(method=="static.blend", "blended model - static",
-                                                    ifelse(method=="dynamic.blend", "blended model - dynamic", "measured blended - dynamic"))),
-                             order = factor(method, levels=c('single model - static', 'blended model - static', 'blended model - dynamic', 'measured blended - dynamic'))), 
-                    aes(x=time, y=meangrow, col=order, fill=order)) +
+                                                    ifelse(method=="dynamic.blend", "blended model - dynamic", 
+                                                           ifelse(method=="dynamic.matched", 
+                                                                  "blended measured - dynamic matched", 
+                                                                  "blended measured - dynamic")))),
+                             order = factor(method, levels=c('single model - static', 'blended model - static', 
+                                                             'blended model - dynamic', 'blended measured - dynamic', 
+                                                             'blended measured - dynamic matched'))), 
+                    aes(x=time, y=totgrow, col=order, fill=order)) +
   geom_line(size=1.2) +
   ggtitle("b) Oak / hickory group") +
   theme_bw() + scale_color_colorblind(name="Method") + 
