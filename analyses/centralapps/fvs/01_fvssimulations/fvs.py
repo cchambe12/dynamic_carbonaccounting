@@ -64,7 +64,7 @@ def run(kwfile: str) -> int:
 
     # Set the path to the FVS lake states variant executable
     #exepath = './open-fvs2/trunk/bin/FVSls.exe'
-    exepath = '/Users/CatherineChamberlain/Documents/git/ForestVegetationSimulator/bin/FVSne'
+    exepath = '/Users/c.chamberlain/Documents/git/ForestVegetationSimulator/bin/FVSne'
 
     # Build environment, disabling denormal FP exception trapping
     env = os.environ.copy()

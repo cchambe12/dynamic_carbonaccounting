@@ -39,6 +39,7 @@ library(ggplot2)
 library(plotly)
 library(viridis)
 library(RColorBrewer)
+library(raster)
 library(dplyr)
 library(tidyr)
 library(gridExtra)
@@ -117,13 +118,12 @@ if(file.exists(paste0("../../fiadata/", region, "/",
 }else {
   
   for(i in c(states)){
-getFIA(states = i, tables = c("POP_ESTN_UNIT", "POP_EVAL", "POP_EVAL_GRP", "POP_EVAL_TYP",
-    "POP_PLOT_STRATUM_ASSGN", "POP_STRATUM", "TREE", "PLOT", "COND", "COND_DWM_CALC"), load=FALSE,
+getFIA(states = i, tables = c("TREE", "PLOT", "COND", "PLOTGEOM"), load=FALSE,
               dir=paste0("../../fiadata/", region))
   }
 }
 
-fia <- readFIA(paste0("../../fiadata/", region))
+fia <- readFIA(paste0("../../fiadata/", region), common = FALSE, tables = c("PLOT", "TREE", "COND", "PLOTGEOM"))
 
 ```
 
@@ -133,6 +133,12 @@ fia <- readFIA(paste0("../../fiadata/", region))
 # Combining states' plots into one dataframe
 allplot <- fia$PLOT
 names(allplot) <- tolower(names(allplot))
+
+allgeom <- fia$PLOTGEOM
+names(allgeom) <- tolower(names(allgeom))
+        
+#Appending ecosubcd field from PLOTGEOM table to allplot table - field was recently removed from plot table in FIADB update
+allplot <- merge(x = allplot, y = allgeom[ , c("cn","ecosubcd")], by = c("cn"), all.x=TRUE)
 
 
 ### Add in traits to calculate relative density and also for desirability codes
@@ -300,7 +306,7 @@ treeplot = left_join(trees, allplot)
 ### Step 1: Getting plot level summaries
 dat_grouped <- treeplot %>%
   dplyr::mutate(current = dia >= 5,
-                harv = statuscd.prev == 1 & dia.prev >= 5 & statuscd == 3,
+                harv = statuscd.prev == 1 & dia.prev >= 5 & statuscd == 2,
                 mort = statuscd.prev == 1 & statuscd == 2,
                 prevall = statuscd.prev == 1 & volbfgrs.ac == 0,
                 standall = statuscd == 1 & statuscd.prev == 1,
@@ -501,6 +507,7 @@ $$\\[1in]$$
 
 totplots <- nrow(datclean)
 
+if(FALSE){
 forplot <- ggplot(datclean %>% group_by(forestname) %>% 
                     summarize(percent = paste0(round(n()/totplots*100, digits=0), "%"),
                               count = n()) %>%
@@ -520,7 +527,7 @@ png(paste0("figures/forestypes_", region, ".png"),
     height=5, units="in", res = 350 )
 forplot
 invisible(dev.off())
-
+}
 
 
 ```
@@ -662,7 +669,6 @@ write.csv(datclean, paste0("output/harvestprep_", region, "_trtbaac.csv"), row.n
 library(usmap)
 library(USAboundaries)
 library(sf)
-library(rgeos)
 library(terra)
 
 usda <- st_read("../input/S_USA.EcomapSections.dbf")
@@ -924,7 +930,7 @@ datall_harv = datclean %>%
       ## Diameter size class for removed stems vs prior to harvest - as per Catherine Henry's methods
       diaharv <- speciestable %>%
         filter(!is.na(statuscd.prev), !is.na(harvestbins), !is.na(tpa.custom.prev)) %>%
-        dplyr::mutate(harvested = statuscd.prev == 1 & statuscd == 3,
+        dplyr::mutate(harvested = statuscd.prev == 1 & statuscd == 2,
                       previously_standing = statuscd.prev == 1) %>%
         group_by(plt_cn, dia_bin) %>%
         summarize(across(c(harvestbins, forestname), function(x) first(na.omit(x))),
@@ -1110,7 +1116,7 @@ site_redux_harvest <- site_redux %>%
 REF_SPECIES <- read.csv("../input/REF_SPECIES.csv")
 tree_jenkins <- treeplot %>%
   dplyr::select(plt_cn,statecd,unitcd,dia,dia.prev,spcd,statuscd,prev_status_cd,decaycd,tpa_unadj) %>%
-  filter(statuscd==3)
+  filter(statuscd==2)
 
 # Append Jenkins coefficients to each treelist entry
 tree_jenkins$JENKINS_TOTAL_B1 = REF_SPECIES[match(tree_jenkins$spcd, REF_SPECIES$SPCD), "JENKINS_TOTAL_B1"]

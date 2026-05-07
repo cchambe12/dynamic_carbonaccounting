@@ -1,0 +1,646 @@
+##### Very quick script to plot all additionality figures in one place
+## Started 12 November 2024 by Cat
+
+##### CAT TO WORK ON LINES 266 onward!!! 1 May 2026
+
+### housekeeping
+rm(list=ls()) 
+options(stringsAsFactors = FALSE)
+
+### Load Libraries
+library(gridExtra)
+library(patchwork)
+library(ggsci)
+library(viridis)
+library(RColorBrewer)
+library(ggthemes)
+library(brms)
+library(bayesplot)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(broom.mixed)
+
+## Set working directory
+setwd("~/Documents/git/dynamic_carbonaccounting/analyses/")
+
+#################################################################################
+################ Load in all data and prepare plots ############################
+#################################################################################
+cappsoak <- read.csv("centralapps/output/centralapps_oaks_projectvbau_fia_v2.csv") %>%
+  mutate(forestname = "Oak / hickory group", region = "Central Apps",
+         benchmark = mean(benchmark, na.rm=TRUE)) %>%
+  select(-mean.deltac, -mean.deltac.bau) %>%
+  filter(!is.na(time))
+cappsmbb <- read.csv("centralapps/output/centralapps_mbbs_projectvbau_fia_v2.csv") %>%
+  mutate(forestname = "Maple / beech / birch group", region = "Central Apps",
+         benchmark = mean(benchmark, na.rm = TRUE)) %>%
+  select(-mean.deltac, -mean.deltac.bau) %>%
+  filter(!is.na(time))
+
+neoak <- read.csv("northeast/output/northeast_oaks_projectvbau_fia_v2.csv") %>%
+  mutate(forestname = "Oak / hickory group", region = "Northeast",
+         benchmark = mean(benchmark, na.rm = TRUE)) %>%
+  select(-mean.deltac, -mean.deltac.bau) %>%
+  filter(!is.na(time))
+nembb <- read.csv("northeast/output/northeast_mbbs_projectvbau_fia_v2.csv") %>%
+  mutate(forestname = "Maple / beech / birch group", region = "Northeast",
+         benchmark = mean(benchmark, na.rm = TRUE)) %>%
+  select(-mean.deltac, -mean.deltac.bau) %>%
+  filter(!is.na(time))
+
+nwoak <- read.csv("northwoods/output/northwoods_oaks_projectvbau_fia_v2.csv") %>%
+  mutate(forestname = "Oak / hickory group", region = "Northwoods",
+         benchmark = mean(benchmark, na.rm = TRUE)) %>%
+  select(-mean.deltac, -mean.deltac.bau) %>%
+  filter(!is.na(time))
+nwmbb <- read.csv("northwoods/output/northwoods_mbbs_projectvbau_fia_v2.csv") %>%
+  mutate(forestname = "Maple / beech / birch group", region = "Northwoods",
+         benchmark = mean(benchmark, na.rm = TRUE)) %>%
+  select(-mean.deltac, -mean.deltac.bau) %>%
+  filter(!is.na(time))
+
+sappsoak <- read.csv("southernapps/output/southernapps_oaks_projectvbau_fia_v2.csv") %>%
+  mutate(forestname = "Oak / hickory group", region = "Southern Apps",
+         benchmark = mean(benchmark, na.rm = TRUE)) %>%
+  select(-mean.deltac, -mean.deltac.bau) %>%
+  filter(!is.na(time))
+sappsmbb <- read.csv("southernapps/output/southernapps_mbbs_projectvbau_fia_v2.csv") %>%
+  mutate(forestname = "Maple / beech / birch group", region = "Southern Apps",
+         benchmark = mean(benchmark, na.rm = TRUE)) %>%
+  select(-mean.deltac, -mean.deltac.bau) %>%
+  filter(!is.na(time))
+
+### And clean up to make sure consistent PLT_CNs ### 
+
+allmeasured <- full_join(cappsoak, cappsmbb) %>%
+  full_join(neoak) %>%
+  full_join(nembb) %>%
+  full_join(nwoak) %>%
+  full_join(nwmbb) %>%
+  full_join(sappsoak) %>%
+  full_join(sappsmbb) %>%
+  ungroup() %>%
+  group_by(plt_cn, time, method) %>%
+  mutate(addit = deltac - mean(deltac.bau)) %>%
+  distinct() %>%
+  select(plt_cn, time, method, forestname, region, baac.remv.bau, addit, benchmark) %>%
+  rename(fiabau = baac.remv.bau) %>%
+  pivot_wider(names_from = method, values_from = c(addit, fiabau)) %>%
+  rename(dynamic.matched = addit_dynamic,
+         dynamic.unmatched = `addit_dynamic - unmatched`,
+         fiabau.matched = fiabau_dynamic,
+         fiabau.unmatched = `fiabau_dynamic - unmatched`)
+
+################################################################################
+#### Get FVS outputs
+cappsoakfvs <- read.csv("centralapps/fvs/02_carbonaccounting/output/clean_fvsoutput_oak.csv") %>%
+  mutate(forestname = "Oak / hickory group", region = "Central Apps", baac.remv = 0.34)
+cappsmbbfvs <- read.csv("centralapps/fvs/02_carbonaccounting/output/clean_fvsoutput_mbb.csv") %>%
+  mutate(forestname = "Maple / beech / birch group", region = "Central Apps", baac.remv = 0.34)
+
+neoakfvs <- read.csv("northeast/fvs/02_carbonaccounting/output/clean_fvsoutput_oak.csv") %>%
+  mutate(forestname = "Oak / hickory group", region = "Northeast", baac.remv = 0.37)
+nembbfvs <- read.csv("northeast/fvs/02_carbonaccounting/output/clean_fvsoutput_mbb.csv") %>%
+  mutate(forestname = "Maple / beech / birch group", region = "Northeast", baac.remv = 0.52)
+
+nwoakfvs <- read.csv("northwoods/fvs/02_carbonaccounting/output/clean_fvsoutput_oak.csv") %>%
+  mutate(forestname = "Oak / hickory group", region = "Northwoods", ecosub = as.character(ecosub), baac.remv = 0.36)
+nwmbbfvs <- read.csv("northwoods/fvs/02_carbonaccounting/output/clean_fvsoutput_mbb.csv") %>%
+  mutate(forestname = "Maple / beech / birch group", region = "Northwoods", ecosub = as.character(ecosub), baac.remv = 0.39)
+
+sappsoakfvs <- read.csv("southernapps/fvs/02_carbonaccounting/output/clean_fvsoutput_oak.csv") %>%
+  mutate(forestname = "Oak / hickory group", region = "Southern Apps", baac.remv = 0.53)
+sappsmbbfvs <- read.csv("southernapps/fvs/02_carbonaccounting/output/clean_fvsoutput_mbb.csv") %>%
+  mutate(forestname = "Maple / beech / birch group", region = "Southern Apps", baac.remv = 0.40)
+
+allfvs <- full_join(cappsoakfvs, cappsmbbfvs) %>%
+  full_join(neoakfvs) %>%
+  full_join(nembbfvs) %>%
+  full_join(nwoakfvs) %>%
+  full_join(nwmbbfvs) %>%
+  full_join(sappsoakfvs) %>%
+  full_join(sappsmbbfvs) 
+
+fvs <- allfvs %>%
+  ungroup() %>%
+  select(plt_cn, time, delta.oak.grow, delta.mbb.grow, delta.oak.grow.comp, delta.mbb.grow.comp, delta.oak.grow.comp.blend, delta.mbb.grow.comp.blend,
+         region, forestname, baac.remv) %>% 
+  filter(time < 20) %>%
+  pivot_longer(cols = c(delta.oak.grow:delta.mbb.grow.comp.blend), names_to = "method", values_to = "deltac") %>%
+  na.omit() %>%
+  mutate(method = ifelse(substr(method, nchar(method)-4, nchar(method))==".comp", "static.blend", 
+                         ifelse(substr(method, nchar(method)-5, nchar(method))==".blend", "dynamic.blend", "static"))) %>%
+  pivot_wider(names_from=method, values_from=deltac) %>%
+  select(plt_cn, time, forestname, region, baac.remv, static, static.blend, dynamic.blend) %>%
+  rename(fvsbau = baac.remv)
+
+
+#### Bring modeled and "measured" together
+## First try merging by plt_cn if possible - this should ensure we're only using the same "project" plots
+allscenarios <- left_join(allmeasured, fvs) %>%
+  ungroup() %>%
+  group_by(plt_cn, forestname, region) %>%
+  mutate(static = ifelse(time > 0, mean(static, na.rm=TRUE), static),
+         static.blend = ifelse(time > 0, mean(static.blend, na.rm=TRUE), static.blend)) %>%
+  ungroup()
+
+
+#################################################################################
+################### Plotting differences in averages ############################
+#################################################################################
+mbb.p <- ggplot(allscenarios %>% filter(forestname == "Maple / beech / birch group") %>%
+                  select(forestname, region, dynamic.matched, dynamic.unmatched, static, 
+                         static.blend, dynamic.blend, benchmark) %>%
+                  pivot_longer(cols=c(dynamic.matched:dynamic.blend), 
+                               names_to = "method", values_to = "meangrow") %>%
+                  mutate(meangrow = meangrow * 2.47,
+                         benchmark = benchmark * 2.47) %>%
+                  group_by(forestname, region, method) %>%
+                  summarize(segrow = sd(meangrow)/sqrt(length(meangrow)),
+                            meangrow = mean(meangrow, na.rm=TRUE),
+                            benchmark = mean(benchmark)) %>%
+                  mutate(method = ifelse(method=="static", "single model - static", 
+                                         ifelse(method=="static.blend", "blended model - static",
+                                                ifelse(method=="dynamic.blend", "blended model - dynamic", 
+                                                       ifelse(method=="dynamic.matched", 
+                                                              "blended measured - dynamic matched",
+                                                              "blended measured - dynamic")))),
+                         order = factor(method, levels=c('single model - static', 'blended model - static', 
+                                                         'blended model - dynamic', 'blended measured - dynamic', 
+                                                         'blended measured - dynamic matched'))), 
+                aes(x=order, y=meangrow, group=order, fill=order, col=order)) +
+  ggtitle("a) Maple / beech / birch group") +
+  geom_col(position = position_dodge()) + 
+  geom_hline(aes(yintercept = benchmark), col = "red4", linetype = "dashed") +
+  geom_errorbar(aes(ymin = meangrow - segrow, ymax = meangrow + segrow), width=0.2) +
+  theme_bw() + theme(legend.position="none") +
+  scale_fill_colorblind() + scale_color_colorblind() +  
+  facet_wrap(~region) + xlab("") +
+  ylab("Avg additional Mg CO2e/ha/yr") + #coord_cartesian(ylim=c(-1,8)) +
+  geom_text(aes(label = round(meangrow, digits=2)), vjust=-1.75) + 
+  scale_x_discrete(guide = guide_axis(angle=45))
+
+oak.p <- ggplot(allscenarios %>% filter(forestname == "Oak / hickory group") %>%
+                  select(forestname, region, dynamic.matched, dynamic.unmatched, static, 
+                         static.blend, dynamic.blend, benchmark) %>%
+                  pivot_longer(cols=c(dynamic.matched:dynamic.blend), 
+                               names_to = "method", values_to = "meangrow") %>%
+                  mutate(meangrow = meangrow * 2.47,
+                         benchmark = benchmark * 2.47) %>%
+                  group_by(forestname, region, method) %>%
+                  summarize(segrow = sd(meangrow)/sqrt(length(meangrow)),
+                            meangrow = mean(meangrow, na.rm=TRUE),
+                            benchmark = mean(benchmark)) %>%
+                  mutate(method = ifelse(method=="static", "single model - static", 
+                                         ifelse(method=="static.blend", "blended model - static",
+                                                ifelse(method=="dynamic.blend", "blended model - dynamic", 
+                                                       ifelse(method=="dynamic.matched", 
+                                                              "blended measured - dynamic matched",
+                                                              "blended measured - dynamic")))),
+                         order = factor(method, levels=c('single model - static', 'blended model - static', 
+                                                         'blended model - dynamic', 'blended measured - dynamic', 
+                                                         'blended measured - dynamic matched'))), 
+                aes(x=order, y=meangrow, group=order, fill=order, col=order)) +
+  ggtitle("b) Oak / hickory group") +
+  geom_col(position = position_dodge()) + 
+  geom_hline(aes(yintercept = benchmark), col = "red4", linetype = "dashed") +
+  geom_errorbar(aes(ymin = meangrow - segrow, ymax = meangrow + segrow), width=0.2) +
+  theme_bw() + theme(legend.position="none") +
+  scale_fill_colorblind() + scale_color_colorblind() + 
+  facet_wrap(~region) + xlab("") +
+  ylab("") + #coord_cartesian(ylim=c(-5,8)) +
+  geom_text(aes(label = round(meangrow, digits=2)), vjust=-1.75, col="red4") + 
+  scale_x_discrete(guide = guide_axis(angle=45))
+
+png("figures/method_compare_v2.png", 
+    width=10,
+    height=8, units="in", res = 350 )
+mbb.p + oak.p +
+  plot_layout(ncol = 2, nrow = 1, guides = "collect")
+dev.off()
+
+################################################################################
+################### Look at differences over time ##############################
+mbbtime.p <- ggplot(allscenarios %>% 
+                      filter(forestname == "Maple / beech / birch group", time > 0) %>%
+                      select(plt_cn,forestname, time, region, dynamic.matched, dynamic.unmatched, static, static.blend, dynamic.blend) %>%
+                      pivot_longer(cols=c(dynamic.matched:dynamic.blend), names_to = "method", values_to = "meangrow") %>%
+                      ungroup() %>%
+                      mutate(meangrow = meangrow * 2.47) %>%
+                      group_by(plt_cn, method, region, forestname) %>%
+                      mutate(totgrow = cumsum(meangrow)) %>%
+                      group_by(time, method, region, forestname) %>%
+                      summarize(totgrow = mean(totgrow, na.rm = TRUE)) %>%
+                      ungroup() %>%
+                      group_by(method, region, forestname) %>%
+                      mutate(method = ifelse(method=="static", "single model - static", 
+                                             ifelse(method=="static.blend", "blended model - static",
+                                                    ifelse(method=="dynamic.blend", "blended model - dynamic", 
+                                                           ifelse(method=="dynamic.matched", 
+                                                                  "blended measured - dynamic matched", 
+                                                                  "blended measured - dynamic")))),
+                             order = factor(method, levels=c('single model - static', 'blended model - static', 
+                                                             'blended model - dynamic', 'blended measured - dynamic', 
+                                                             'blended measured - dynamic matched'))), 
+                    aes(x=time, y=totgrow, col=order, fill=order)) +
+  geom_line(size=1.2) +
+  ggtitle("a) Maple / beech / birch group") +
+  theme_bw() + scale_color_colorblind(name="Method") + 
+  xlab("Years since project start") + ylab("Cumulative additional Mg CO2e/ha/yr") + facet_wrap(~region, scales = "fixed")
+
+oaktime.p <- ggplot(allscenarios %>% 
+                      filter(forestname == "Oak / hickory group", time > 0) %>%
+                      select(plt_cn, forestname, time, region, dynamic.matched, dynamic.unmatched, static, static.blend, dynamic.blend) %>%
+                      pivot_longer(cols=c(dynamic.matched:dynamic.blend), names_to = "method", values_to = "meangrow") %>%
+                      ungroup() %>%
+                      mutate(meangrow = meangrow * 2.47) %>%
+                      group_by(plt_cn, method, region, forestname) %>%
+                      mutate(totgrow = cumsum(meangrow)) %>%
+                      group_by(time, method, region, forestname) %>%
+                      summarize(totgrow = mean(totgrow, na.rm = TRUE)) %>%
+                      ungroup() %>%
+                      group_by(method, region, forestname) %>%
+                      mutate(method = ifelse(method=="static", "single model - static", 
+                                             ifelse(method=="static.blend", "blended model - static",
+                                                    ifelse(method=="dynamic.blend", "blended model - dynamic", 
+                                                           ifelse(method=="dynamic.matched", 
+                                                                  "blended measured - dynamic matched", 
+                                                                  "blended measured - dynamic")))),
+                             order = factor(method, levels=c('single model - static', 'blended model - static', 
+                                                             'blended model - dynamic', 'blended measured - dynamic', 
+                                                             'blended measured - dynamic matched'))), 
+                    aes(x=time, y=totgrow, col=order, fill=order)) +
+  geom_line(size=1.2) +
+  ggtitle("b) Oak / hickory group") +
+  theme_bw() + scale_color_colorblind(name="Method") + 
+  xlab("Years since project start") + ylab("") + facet_wrap(~region, scales = "fixed")
+
+
+png("figures/method_compare_overtime_v2.png", 
+    width=11,
+    height=7, units="in", res = 350 )
+mbbtime.p + oaktime.p +
+  plot_layout(ncol = 2, nrow = 1, guides = "collect")
+dev.off()
+
+################################################################################
+############ Prepare covariates for Bayesian Hierarchical Model ################
+
+caqmd <- read.csv("centralapps/output/clean_centralapps_fiadata.csv") %>%
+  mutate(region = "Central Apps", variant = "northeast") %>% 
+  select(plt_cn, harvest, qmdchange, baac.remv, forestname, region, baac.prev, shannon_index, variant,
+         siteclcd, elev, slope, rd.ac.over, rd.ac.regen, rddistcd) %>%
+  rename(baac = baac.prev, spdiv = shannon_index) %>%
+  ungroup() %>% distinct()
+neqmd <- read.csv("northeast/output/clean_northeast_fiadata.csv") %>%
+  mutate(region = "Northeast", variant = "northeast") %>% 
+  select(plt_cn, harvest, qmdchange, baac.remv, forestname, region, baac.prev, shannon_index, variant,
+         siteclcd, elev, slope, rd.ac.over, rd.ac.regen, rddistcd) %>%
+  rename(baac = baac.prev, spdiv = shannon_index) %>%
+  ungroup() %>% distinct()
+nwqmd <- read.csv("northwoods/output/clean_northwoods_fiadata.csv") %>%
+  mutate(region = "Northwoods", variant = "lakestates") %>% 
+  select(plt_cn, harvest, qmdchange, baac.remv, forestname, region, baac.prev, shannon_index, variant,
+         siteclcd, elev, slope, rd.ac.over, rd.ac.regen, rddistcd) %>%
+  rename(baac = baac.prev, spdiv = shannon_index) %>%
+  ungroup() %>% distinct()
+saqmd <- read.csv("southernapps/output/clean_southernapps_fiadata.csv") %>%
+  mutate(region = "Southern Apps", variant = "southern") %>% 
+  select(plt_cn, harvest, qmdchange, baac.remv, forestname, region, baac.prev, shannon_index, variant,
+         siteclcd, elev, slope, rd.ac.over, rd.ac.regen, rddistcd) %>%
+  rename(baac = baac.prev, spdiv = shannon_index) %>%
+  ungroup() %>% distinct()
+
+
+qmd <- full_join(caqmd, neqmd) %>%
+  full_join(nwqmd) %>%
+  full_join(saqmd) %>%
+  right_join(allscenarios %>% select(plt_cn, forestname, region, dynamic.matched, dynamic.unmatched, static, static.blend, dynamic.blend) %>%
+               pivot_longer(cols=c(dynamic.matched:dynamic.blend), names_to = "method", values_to = "meangrow") %>%
+               ungroup() %>%
+               group_by(plt_cn, method, region, forestname) %>%
+               summarize(meangrow = mean(meangrow))) %>%
+  ungroup() %>%
+  mutate(BAAC = (baac - mean(baac, na.rm=TRUE)) / (sd(baac, na.rm=TRUE)),
+         BAremv = (fiabau - mean(fiabau, na.rm=TRUE)) / (sd(fiabau, na.rm=TRUE)),
+         ChangeQMD = (qmdchange - mean(qmdchange, na.rm=TRUE)) / (sd(qmdchange, na.rm=TRUE)),
+         SpDiversity = (spdiv - mean(spdiv, na.rm=TRUE)) / (sd(spdiv, na.rm=TRUE)),
+         RdDist = (rddistcd - mean(rddistcd, na.rm=TRUE)) / (sd(rddistcd, na.rm=TRUE)),
+         Elev = (elev - mean(elev, na.rm=TRUE)) / (sd(elev, na.rm=TRUE)),
+         Slope = (slope - mean(slope, na.rm=TRUE)) / (sd(slope, na.rm=TRUE)),
+         SiteClass = (siteclcd - mean(siteclcd, na.rm=TRUE)) / (sd(siteclcd, na.rm=TRUE)),
+         OverstoryRD = (rd.ac.over - mean(rd.ac.over, na.rm=TRUE)) / (sd(rd.ac.over, na.rm=TRUE)),
+         UnderstoryRD = (rd.ac.regen - mean(rd.ac.regen, na.rm=TRUE)) / (sd(rd.ac.regen, na.rm=TRUE))) %>%
+  distinct()
+
+################################################################################
+######################### Run the Bayesian Model ###############################
+diffmod <- brm(meangrow ~ BAremv + BAAC + ChangeQMD + SpDiversity + SiteClass + RdDist + SiteClass + 
+                 OverstoryRD + UnderstoryRD + 
+                 (1 | method), data=qmd,
+               chains = 2, control = list(adapt_delta = 0.99), iter=3000, warmup=2000)
+
+
+
+png("figures/table_standcharacteristics.png", 
+    width=5,
+    height=3, units="in", res = 350 )
+grid.arrange(diffmod %>% 
+  tidy(conf.level = 0.89) %>%
+  select(term, estimate, std.error, conf.low, conf.high) %>%
+    mutate(estimate = round(estimate, digits=2),
+           std.error = round(std.error, digits=2),
+           conf.low = round(conf.low, digits=2),
+           conf.high = round(conf.high, digits=2),) %>%
+  filter(!term %in% c("sd__(Intercept)", "sd__Observation")) %>%
+    tableGrob(theme = ttheme_default(
+      core = list(bg_params=list(fill=c("grey90", "white"))),
+      colhead = list(fg_params=list(col="white"),
+                     bg_params=list(fill="#084594"))), rows = NULL))
+dev.off()
+
+
+
+### Strongest drivers are thinning strategy and overstory relative density 
+sjPlot::plot_model(diffmod, type = "est", ci.lvl = 0.89, colors=c("firebrick4", "blue4"),
+                   title="Model estimate of additional Mg CO2e/ac/yr", ci.style="bar",
+                   sort.est = TRUE) + theme_classic() +
+  geom_hline(yintercept=0, linetype="dotted", col="grey60")
+
+sjPlot::plot_model(diffmod, type = "re", ci.lvl = 0.89, colors=c("firebrick4", "blue4"),
+                   title="Model estimate of additional Mg CO2e/ac/yr", ci.style="bar",
+                   sort.est = TRUE, bpe="median") + theme_classic() +
+  geom_hline(yintercept=0, linetype="dotted", col="grey60")
+
+png("figures/modeloutput_covariates.png", 
+    width=4.5,
+    height=3, units="in", res = 250 )
+sjPlot::plot_model(diffmod, type = "est", ci.lvl = 0.89, colors=c("firebrick4", "blue4"),
+                   title="Model estimate of additional Mg CO2e/ac/yr", ci.style="bar",
+                   sort.est = TRUE) + theme_classic() +
+  geom_hline(yintercept=0, linetype="dotted", col="grey60")
+dev.off()
+
+##### Get model estimates
+qmd$modgrow <- as.data.frame(predict(diffmod))$Estimate
+qmd$sdgrow <- as.data.frame(predict(diffmod))$Est.Error
+
+### Prepare boxplot
+quantiles_89 <- function(x) {
+  r <- quantile(x, probs=c(0.11, 0.25, 0.5, 0.75, 0.89))
+  names(r) <- c("ymin", "lower", "middle", "upper", "ymax")
+  r
+}
+
+diffp <- ggplot(qmd %>% mutate(method = ifelse(method=="static", "single model - static", 
+                                  ifelse(method=="static.blend", "blended model - static",
+                                         ifelse(method=="dynamic.blend", "blended model - dynamic", 
+                                                "measured blended - dynamic"))),
+                      order = factor(method, levels=c('single model - static', 'blended model - static', 'blended model - dynamic', 'measured blended - dynamic'))), 
+       aes(x=order, col=order, y=modgrow, group=order, fill=order)) + 
+  stat_summary(fun.data = quantiles_89, geom="boxplot",
+               width=0.1) + theme_bw() + scale_color_colorblind(name="Method") + 
+  scale_fill_colorblind(name="Method") + theme(legend.position = "none") + 
+  scale_x_discrete(guide = guide_axis(angle=45)) + xlab("") + ylab("Model estimate of\nadditional Mg CO2e/ac/yr")
+
+png("figures/modeloutput_method.png", 
+    width=5,
+    height=4, units="in", res = 250 )
+diffp
+dev.off()
+
+
+### Report table with means and standard errors
+qmd <- qmd %>%
+  mutate(method = ifelse(method=="static", "single model - static", 
+                       ifelse(method=="static.blend", "blended model - static",
+                              ifelse(method=="dynamic.blend", "blended model - dynamic", 
+                                     "measured blended - dynamic"))),
+         order = factor(method, levels=c('single model - static', 'blended model - static', 'blended model - dynamic', 'measured blended - dynamic')))
+
+averages_compare <- qmd %>%
+  group_by(region, forestname, method) %>%
+  summarize(average_gains = mean(meangrow, na.rm = TRUE),
+            se_gains = sd(meangrow, na.rm = TRUE)/sqrt(n()))
+
+write.csv(averages_compare, "output/methodoutputs_comparegains.csv", row.names = FALSE)
+
+
+png("figures/table_approachmeans.png", 
+    width=6,
+    height=2, units="in", res = 350 )
+grid.arrange(qmd %>%
+               select(order, modgrow, sdgrow) %>%
+               group_by(order) %>%
+               summarize(`Avg Mg CO2e/ac/yr` = round(mean(modgrow, na.rm=TRUE), digits=2),
+                         `SD Mg CO2e/ac/yr` = round(sd(modgrow), digits=2)) %>%
+               rename(Approach = order) %>%
+               tableGrob(theme = ttheme_default(
+                 core = list(bg_params=list(fill=c("grey90", "white"))),
+                 colhead = list(fg_params=list(col="white"),
+                                bg_params=list(fill="#084594"))), rows = NULL))
+dev.off()
+
+
+### Extras for more reporting in Results
+deltas <- qmd %>%
+  ungroup() %>%
+  select(forestname, region, modgrow) %>%
+  group_by(forestname, region) %>%
+  summarize(`Range Mg CO2e/ac/yr` = round(max(modgrow, na.rm=TRUE) - min(modgrow, na.rm=TRUE), digits=2))
+
+getfia <- full_join(caqmd, neqmd) %>%
+  full_join(nwqmd) %>%
+  full_join(saqmd) %>%
+  group_by(forestname, region) %>%
+  summarize(numplots = n())
+
+png("figures/table_regionforesttype.png", 
+    width=10,
+    height=3, units="in", res = 250 )
+grid.arrange(getfia %>% left_join(qmd %>%
+               select(forestname, region, modgrow) %>%
+               group_by(forestname, region) %>%
+               summarize(`Avg Mg CO2e/ac/yr` = round(mean(modgrow, na.rm=TRUE), digits=2),
+                         `SE Mg CO2e/ac/yr` = round(sd(modgrow)/sqrt(length(modgrow)), digits=2))) %>%
+               left_join(deltas) %>%
+               rename(`Forest Type` = forestname,
+                      Region = region,
+                      `# FIA plots` = numplots) %>%
+               tableGrob(theme = ttheme_default(
+                 core = list(bg_params=list(fill=c("grey90", "white"))),
+                 colhead = list(fg_params=list(col="white"),
+                                bg_params=list(fill="#084594"))), rows = NULL))
+dev.off()
+
+png("figures/foresttyperegion.png", 
+    width=9,
+    height=7, units="in", res =350 )
+ggplot(qmd %>%
+         select(forestname, region, modgrow) %>%
+         group_by(forestname, region) %>%
+         summarize(`Avg Mg CO2e/ac/yr` = round(mean(modgrow, na.rm=TRUE), digits=2),
+                   `SD Mg CO2e/ac/yr` = round(sd(modgrow)/sqrt(length(modgrow)), digits=2)) %>%
+         mutate(group = paste(forestname, region)),
+       aes(x=reorder(group, `Avg Mg CO2e/ac/yr`, decreasing = TRUE), y=`Avg Mg CO2e/ac/yr`, group=group, fill=group)) + geom_col() +
+  geom_errorbar(aes(ymin=`Avg Mg CO2e/ac/yr` - `SD Mg CO2e/ac/yr`, ymax = `Avg Mg CO2e/ac/yr` + `SD Mg CO2e/ac/yr`)) +
+  scale_fill_colorblind() + theme_bw() + theme(legend.position = "none") +
+  scale_x_discrete(guide = guide_axis(angle=60)) + xlab("")
+dev.off()
+
+
+png("figures/table_foresttype.png", 
+    width=6,
+    height=2, units="in", res = 350 )
+grid.arrange(qmd %>%
+               select(forestname, modgrow) %>%
+               group_by(forestname) %>%
+               summarize(`Avg Mg CO2e/ac/yr` = round(mean(modgrow, na.rm=TRUE), digits=2),
+                         `SE Mg CO2e/ac/yr` = round(sd(modgrow)/sqrt(length(modgrow)), digits=2)) %>%
+               rename(`Forest Type` = forestname) %>%
+               tableGrob(theme = ttheme_default(
+                 core = list(bg_params=list(fill=c("grey90", "white"))),
+                 colhead = list(fg_params=list(col="white"),
+                                bg_params=list(fill="#084594"))), rows = NULL))
+dev.off()
+
+png("figures/table_region.png", 
+    width=6,
+    height=2, units="in", res = 350 )
+grid.arrange(qmd %>%
+               select(region, modgrow) %>%
+               group_by(region) %>%
+               summarize(`Avg Mg CO2e/ac/yr` = round(mean(modgrow, na.rm=TRUE), digits=2),
+                         `SE Mg CO2e/ac/yr` = round(sd(modgrow)/sqrt(length(modgrow)), digits=2)) %>%
+               rename(Region = region) %>%
+               tableGrob(theme = ttheme_default(
+                 core = list(bg_params=list(fill=c("grey90", "white"))),
+                 colhead = list(fg_params=list(col="white"),
+                                bg_params=list(fill="#084594"))), rows = NULL))
+dev.off()
+
+
+### Some relationship between removal rates and difference
+over.p <- ggplot(qmd, aes(x = rd.ac.over, y = modgrow)) +
+  geom_smooth(method="lm", formula=y~poly(x,2), col="red4", fill="red4") + theme_bw() +
+  ylab("Model estimate of\nadditional Mg CO2e/ac/yr") + xlab("Overstory Relative Density") +
+  ggtitle("a) Relative density of the overstory")
+
+siteclass.p <- ggplot(qmd, aes(x = siteclcd, y = modgrow)) +
+  geom_smooth(method="lm", formula=y~poly(x,2), col="red4", fill="red4") + theme_bw() +
+  ylab("Model estimate of\nadditional Mg CO2e/ac/yr") + xlab("Site Productivity Code") +
+  ggtitle("c) Site productivity code")
+
+remv.p <- ggplot(qmd, aes(x = fiabau, y = modgrow)) +
+  geom_smooth(method="lm", formula=y~poly(x,2), col="red4", fill="red4") + theme_bw() +
+  ylab("Model estimate of\nadditional Mg CO2e/ac/yr") + xlab("% BA removed in common practice") +
+  ggtitle("b) % BA removed\nin common practice")
+
+
+
+png("figures/modeloutput.png", 
+    width=12,
+    height=6, units="in", res = 350 )
+over.p + remv.p + siteclass.p + 
+  plot_layout(ncol = 3, guides = "collect")
+dev.off()
+
+################################################################################
+################ Run the Bayesian Model for approach characteristics ###########
+qmd <- qmd %>%
+  mutate(modeled = ifelse(method %in% c("measured blended - dynamic"), 0, 1),
+         static = ifelse(method %in% c("single model - static", "blended model - static"), 1, 0),
+         composite = ifelse(method %in% c("single model - static"), 0 , 1),
+         group = paste(forestname, region))
+
+
+methodtypemod <- brm(meangrow ~ modeled + static + composite +
+                       (modeled + static + composite | group), data=qmd, 
+               chains = 2, control = list(adapt_delta = 0.99))
+
+png("figures/table_approaches.png", 
+    width=5,
+    height=2, units="in", res = 350 )
+grid.arrange(methodtypemod %>% 
+               tidy(conf.level = 0.89) %>%
+               select(term, estimate, std.error, conf.low, conf.high) %>%
+               mutate(estimate = round(estimate, digits=2),
+                      std.error = round(std.error, digits=2),
+                      conf.low = round(conf.low, digits=2),
+                      conf.high = round(conf.high, digits=2),) %>%
+               filter(term %in% c("(Intercept)", "modeled", "static", "composite")) %>%
+               tableGrob(theme = ttheme_default(
+                 core = list(bg_params=list(fill=c("grey90", "white"))),
+                 colhead = list(fg_params=list(col="white"),
+                                bg_params=list(fill="#084594"))), rows = NULL))
+dev.off()
+
+
+### Strongest drivers are thinning strategy and overstory relative density 
+sjPlot::plot_model(methodtypemod, type = "est", ci.lvl = 0.89, colors=c("firebrick4", "blue4"),
+                   title="Model estimate of additional Mg CO2e/ac/yr", ci.style="bar",
+                   sort.est = TRUE) + theme_classic() +
+  geom_hline(yintercept=0, linetype="dotted", col="grey60")
+
+png("figures/typemodeloutput_covariates.png", 
+    width=4.5,
+    height=2.5, units="in", res = 250 )
+sjPlot::plot_model(methodtypemod, type = "est", ci.lvl = 0.89, colors=c("firebrick4", "blue4"),
+                   title="Model estimate of additional Mg CO2e/ac/yr", ci.style="bar",
+                   sort.est = TRUE) + theme_classic() +
+  geom_hline(yintercept=0, linetype="dotted", col="grey60")
+dev.off()
+
+qmd$methodtype <- as.data.frame(predict(methodtypemod))$Estimate
+
+
+quantiles_89 <- function(x) {
+  r <- quantile(x, probs=c(0.11, 0.25, 0.5, 0.75, 0.89))
+  names(r) <- c("ymin", "lower", "middle", "upper", "ymax")
+  r
+}
+
+typep <- ggplot(qmd, aes(x=order, col=order, y=methodtype, group=order, fill=order)) + 
+  stat_summary(fun.data = quantiles_89, geom="boxplot",
+               width=0.1) + theme_bw() + scale_color_colorblind(name="Method") + 
+  scale_fill_colorblind(name="Method") + theme(legend.position = "none") + 
+  scale_x_discrete(guide = guide_axis(angle=45)) + xlab("") + ylab("Model estimate of\nadditional Mg CO2e/ac/yr")
+
+png("figures/modeloutput_type.png", 
+    width=5,
+    height=4, units="in", res = 350 )
+typep
+dev.off()
+
+### Some relationship between removal rates and difference
+modp <- ggplot(qmd, aes(x = modeled, y = methodtype)) +
+  geom_smooth(method="lm", col="red4", fill="red4") + theme_bw() +
+  ylab("Model estimate of\nadditional Mg CO2e/ac/yr") + xlab("") + coord_cartesian(ylim=c(0.5, 2.25)) +
+  scale_x_continuous(breaks=c(0, 1), labels=c("Measured", "Modeled"),
+                     guide=guide_axis(angle=45)) +
+  ggtitle("a) Measured vs Modeled")
+
+staticp <- ggplot(qmd, aes(x = static, y = methodtype)) +
+  geom_smooth(method="lm", col="red4", fill="red4") + theme_bw() +
+  ylab("Model estimate of\nadditional Mg CO2e/ac/yr") + xlab("") + coord_cartesian(ylim=c(0.5, 2.25)) +
+  scale_x_continuous(breaks=c(0, 1), labels=c("Dynamic", "Static"),
+                     guide=guide_axis(angle=45)) +
+  ggtitle("b) Dynamic vs Static")
+
+compositep <- ggplot(qmd, aes(x = composite*-1, y = methodtype)) +
+  geom_smooth(method="lm", col="red4", fill="red4") + theme_bw() +
+  ylab("Model estimate of\nadditional Mg CO2e/ac/yr") + xlab("") + coord_cartesian(ylim=c(0.5, 2.25)) +
+  scale_x_continuous(breaks=c(0, -1), labels=c("Single BAU", "Composite BAU"),
+                     guide=guide_axis(angle=45)) +
+  ggtitle("c) Composite/Blended vs\n100% harvest likelihood")
+
+
+
+png("figures/modeloutput_type.png", 
+    width=12,
+    height=6, units="in", res = 350 )
+modp + staticp + compositep + 
+  plot_layout(ncol = 3, guides = "collect")
+dev.off()
+

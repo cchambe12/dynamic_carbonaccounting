@@ -39,6 +39,7 @@ library(ggplot2)
 library(plotly)
 library(viridis)
 library(RColorBrewer)
+library(raster)
 library(dplyr)
 library(tidyr)
 library(gridExtra)
@@ -50,6 +51,7 @@ library(sjlabelled)
 library(sjmisc)
 library(lme4)
 library("ggsci")
+
 
 #### Do you want to subset to specific ecosections? If yes, make "TRUE", if no, make "FALSE"
 use.ecosections = TRUE #**ADJUST AS NECESSARY**
@@ -117,13 +119,12 @@ if(file.exists(paste0("../../fiadata/", region, "/",
 }else {
   
   for(i in c(states)){
-getFIA(states = i, tables = c("POP_ESTN_UNIT", "POP_EVAL", "POP_EVAL_GRP", "POP_EVAL_TYP",
-    "POP_PLOT_STRATUM_ASSGN", "POP_STRATUM", "TREE", "PLOT", "COND", "COND_DWM_CALC"), load=FALSE,
+getFIA(states = i, tables = c("TREE", "PLOT", "COND", "PLOTGEOM"), load=FALSE,
               dir=paste0("../../fiadata/", region))
   }
 }
 
-fia <- readFIA(paste0("../../fiadata/", region))
+fia <- readFIA(paste0("../../fiadata/", region), common = FALSE, tables = c("PLOT", "TREE", "COND", "PLOTGEOM"))
 
 ```
 
@@ -133,6 +134,12 @@ fia <- readFIA(paste0("../../fiadata/", region))
 # Combining states' plots into one dataframe
 allplot <- fia$PLOT
 names(allplot) <- tolower(names(allplot))
+
+allgeom <- fia$PLOTGEOM
+names(allgeom) <- tolower(names(allgeom))
+        
+#Appending ecosubcd field from PLOTGEOM table to allplot table - field was recently removed from plot table in FIADB update
+allplot <- merge(x = allplot, y = allgeom[ , c("cn","ecosubcd")], by = c("cn"), all.x=TRUE)
 
 
 ### Add in traits to calculate relative density and also for desirability codes
@@ -211,7 +218,7 @@ tree$total_mtco2eac = tree$ag_mtco2eac + tree$bg_mtco2eac
 tree = tree %>%
   ## Add in previous measurements for rd.perc.cut and baac.perc.cut
   filter(cn %in% unique(prev_tre_cn)) %>%
-  select(cn, dia, statuscd, baac, rd.ac, tpa.custom, volbfgrs.ac) %>%
+  dplyr::select(cn, dia, statuscd, baac, rd.ac, tpa.custom, volbfgrs.ac) %>%
   rename_with(~paste0(., ".prev")) %>%
   rename(prev_tre_cn = cn.prev) %>%
   right_join(tree)
@@ -300,7 +307,7 @@ treeplot = left_join(trees, allplot)
 ### Step 1: Getting plot level summaries
 dat_grouped <- treeplot %>%
   dplyr::mutate(current = dia >= 5,
-                harv = statuscd.prev == 1 & dia.prev >= 5 & statuscd == 3,
+                harv = statuscd.prev == 1 & dia.prev >= 5 & statuscd == 2,
                 mort = statuscd.prev == 1 & statuscd == 2,
                 prevall = statuscd.prev == 1 & volbfgrs.ac == 0,
                 standall = statuscd == 1 & statuscd.prev == 1,
@@ -350,7 +357,7 @@ dat_grouped <- left_join(dat_grouped, forestgroup)
 datprev = dat_grouped %>%
   ## Add in previous measurements for invyr, measdate, rd.perc.cut, baac.perc.cut, and qmd
   filter(plt_cn %in% unique(prev.plt.cn)) %>%
-  select(plt_cn, invyr, measdate, dstrbcd1, dstrbcd2, dstrbcd3, harvest_type1_srs,  baac.perc.cut, 
+  dplyr::select(plt_cn, invyr, measdate, dstrbcd1, dstrbcd2, dstrbcd3, harvest_type1_srs,  baac.perc.cut, 
           qmd, tpasite, trtcd1, volbfgrs.ac, baac, total_mtco2eac, shannon_index) %>%
   rename_with(~paste0(., ".prev")) %>%
   rename(prev.plt.cn = plt_cn.prev) %>%
@@ -360,14 +367,14 @@ datprev = dat_grouped %>%
 datprevprev = datprev %>%
   ## Add in previous, previous measurements for rd.perc.cut, baac.perc.cut, and qmd
   filter(plt_cn %in% unique(prev.prev.plt.cn)) %>%
-  select(plt_cn, invyr, measdate, dstrbcd1, dstrbcd2, dstrbcd3, harvest_type1_srs, total_mtco2eac,  baac.perc.cut, qmd, trtcd1, baac, shannon_index) %>%
+  dplyr::select(plt_cn, invyr, measdate, dstrbcd1, dstrbcd2, dstrbcd3, harvest_type1_srs, total_mtco2eac,  baac.perc.cut, qmd, trtcd1, baac, shannon_index) %>%
   rename_with(~paste0(., ".prev.prev")) %>%
   rename(prev.prev.plt.cn = plt_cn.prev.prev) %>%
   right_join(datprev)
 dat = datprevprev %>%
   ## Add in previous, previous measurements for rd.perc.cut, baac.perc.cut, and qmd
   filter(plt_cn %in% unique(prev.prev.prev.plt.cn)) %>%
-  select(plt_cn, qmd, trtcd1, baac, total_mtco2eac, shannon_index) %>%
+  dplyr::select(plt_cn, qmd, trtcd1, baac, total_mtco2eac, shannon_index) %>%
   rename_with(~paste0(., ".prev.prev.prev")) %>%
   rename(prev.prev.prev.plt.cn = plt_cn.prev.prev.prev) %>%
   right_join(datprevprev) %>%
@@ -417,14 +424,14 @@ colstodupe <- c("forestname", "forestsubtype", "stdage", "gsstk", "desire.prev",
 ## Find initial measurements
 prevdf <- dat[(dat$plt_cn %in% unique(dat$prev.plt.cn)),]
 prevdf <- prevdf %>%
-  select(plt_cn, colstodupe) %>%
+  dplyr::select(plt_cn, colstodupe) %>%
   rename_with(~paste0(., ".prev")) %>%
   rename(prev.plt.cn = plt_cn.prev) %>%
   left_join(dat)
 
 prevprevdf <- dat[(dat$plt_cn %in% unique(dat$prev.prev.plt.cn)),]
 prevprevdf <- prevprevdf %>%
-  select(plt_cn, colstodupe) %>%
+  dplyr::select(plt_cn, colstodupe) %>%
   rename_with(~paste0(., ".prev.prev")) %>%
   rename(prev.prev.plt.cn = plt_cn.prev.prev) %>%
   left_join(dat)
@@ -434,7 +441,7 @@ dat_initial <- full_join(prevdf, prevprevdf)
 
 prevprevprevdf <- dat[(dat$plt_cn %in% unique(dat$prev.prev.prev.plt.cn)),]
 prevprevprevdf <- prevprevprevdf %>%
-  select(plt_cn, colstodupe) %>%
+  dplyr::select(plt_cn, colstodupe) %>%
   rename_with(~paste0(., ".prev.prev.prev")) %>%
   rename(prev.prev.prev.plt.cn = plt_cn.prev.prev.prev) %>%
   left_join(dat)
@@ -449,7 +456,7 @@ dat_initial <- dat_initial %>%
                                              volbfgrs.ac))))
 
 getmills <- left_join(fips, dat_initial %>% 
-                        select(statecd, countycd, unitcd) %>% distinct()) %>%
+                        dplyr::select(statecd, countycd, unitcd) %>% distinct()) %>%
   group_by(statecd, unitcd) %>%
   mutate(nummills = sum(nummills, na.rm = TRUE)) %>%
   ungroup()
@@ -506,7 +513,7 @@ forplot <- ggplot(datclean %>% group_by(forestname) %>%
                               count = n()) %>%
          arrange(desc(count)),
        aes(fill=forestname, x=reorder(forestname, count), y=count)) +
-  geom_col(stat="count") + theme_bw() + 
+  geom_col() + theme_bw() + 
   labs(fill=NULL, x="", y="# of plots") +
   theme(legend.position = "none") + 
   scale_fill_viridis(discrete=TRUE) + #palette="Dark2"
@@ -578,7 +585,7 @@ multharv <- datclean %>%
   rename(`Forest Type` = forestname) %>%
   rename(`Ecoprovince` = ecosub) %>%
     ungroup() %>%
-  select(`Forest Type`, `Ecoprovince`, `Mult harvests`) 
+  dplyr::select(`Forest Type`, `Ecoprovince`, `Mult harvests`) 
 
 
 harvtable <- datclean %>% 
@@ -588,7 +595,7 @@ harvtable <- datclean %>%
   rename(`Forest Type` = forestname) %>%
   rename(`Ecoprovince` = ecosub) %>%
     ungroup() %>%
-  select(`Forest Type`,`Ecoprovince`, `# harvested`) 
+  dplyr::select(`Forest Type`,`Ecoprovince`, `# harvested`) 
 
 #checking out # FIA plots by forest type
 grid.arrange(datclean %>% group_by(forestname, ecosub) %>%  
@@ -596,7 +603,7 @@ grid.arrange(datclean %>% group_by(forestname, ecosub) %>%
   rename(`Forest Type` = forestname) %>%
     rename(`Ecoprovince` = ecosub) %>%
     ungroup() %>%
-  select(`Forest Type`,`Ecoprovince`,  `# FIA plots`) %>% 
+  dplyr::select(`Forest Type`,`Ecoprovince`,  `# FIA plots`) %>% 
     left_join(harvtable) %>%
     left_join(multharv) %>%
   tableGrob(theme = ttheme_default(), rows = NULL))
@@ -609,7 +616,7 @@ grid.arrange(datclean %>% group_by(forestname, ecosub) %>%
   rename(`Forest Type` = forestname) %>%
     rename(`Ecoprovince` = ecosub) %>%
     ungroup() %>%
-  select(`Forest Type`,`Ecoprovince`,  `# FIA plots`) %>% 
+  dplyr::select(`Forest Type`,`Ecoprovince`,  `# FIA plots`) %>% 
     left_join(harvtable) %>%
     left_join(multharv) %>%
   tableGrob(theme = ttheme_default(), rows = NULL))
@@ -662,7 +669,6 @@ write.csv(datclean, paste0("output/harvestprep_", region, "_trtbaac.csv"), row.n
 library(usmap)
 library(USAboundaries)
 library(sf)
-library(rgeos)
 library(terra)
 
 usda <- st_read("../input/S_USA.EcomapSections.dbf")
@@ -924,7 +930,7 @@ datall_harv = datclean %>%
       ## Diameter size class for removed stems vs prior to harvest - as per Catherine Henry's methods
       diaharv <- speciestable %>%
         filter(!is.na(statuscd.prev), !is.na(harvestbins), !is.na(tpa.custom.prev)) %>%
-        dplyr::mutate(harvested = statuscd.prev == 1 & statuscd == 3,
+        dplyr::mutate(harvested = statuscd.prev == 1 & statuscd == 2,
                       previously_standing = statuscd.prev == 1) %>%
         group_by(plt_cn, dia_bin) %>%
         summarize(across(c(harvestbins, forestname), function(x) first(na.omit(x))),

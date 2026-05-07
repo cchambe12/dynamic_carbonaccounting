@@ -68,7 +68,7 @@ End
 
 ! Compute target basal area each cycle
 COMPUTE           0 
-BAtarget = 0.48*BBA
+BAtarget = 0.49*BBA
 END
 
 ! Conditionally thin throughout if BA target is met 

@@ -55,8 +55,6 @@ sappsmbb <- read.csv("southernapps/output/southernapps_mbbs_projectvbau_fia.csv"
   mutate(forestname = "Maple / beech / birch group", region = "Southern Apps") %>%
   filter(!is.na(time))
 
-##### NOTE 29 April 2026 by Cat
-### NEED TO SPLIT FIABAU by each approach!! ####
 ### And clean up to make sure consistent PLT_CNs ### 
 
 allmeasured <- full_join(cappsoak, cappsmbb) %>%
@@ -76,7 +74,21 @@ allmeasured <- full_join(cappsoak, cappsmbb) %>%
   rename(dynamic.matched = addit_dynamic,
          dynamic.unmatched = `addit_dynamic - unmatched`,
          fiabau.matched = fiabau_dynamic,
-         fiabau.unmatced = `fiabau_dynamic - unmatched`)
+         fiabau.unmatched = `fiabau_dynamic - unmatched`)
+
+get_benchmark_comparison <- full_join(cappsoak, cappsmbb) %>%
+  full_join(neoak) %>%
+  full_join(nembb) %>%
+  full_join(nwoak) %>%
+  full_join(nwmbb) %>%
+  full_join(sappsoak) %>%
+  full_join(sappsmbb) %>%
+  ungroup() %>%
+  group_by(plt_cn, time, method) %>%
+  mutate(addit = mean(deltac)) %>%
+  distinct() %>%
+  select(plt_cn, time, forestname, region, addit) %>%
+  rename(benchmark = addit)
 
 ################################################################################
 #### Get FVS outputs
@@ -125,6 +137,7 @@ fvs <- allfvs %>%
 #### Bring modeled and "measured" together
 ## First try merging by plt_cn if possible - this should ensure we're only using the same "project" plots
 allscenarios <- left_join(allmeasured, fvs) %>%
+  left_join(get_benchmark_comparison) %>%
   ungroup() %>%
   group_by(plt_cn, forestname, region) %>%
   mutate(static = ifelse(time > 0, mean(static, na.rm=TRUE), static),
@@ -136,18 +149,21 @@ allscenarios <- left_join(allmeasured, fvs) %>%
 ################### Plotting differences in averages ############################
 #################################################################################
 mbb.p <- ggplot(allscenarios %>% filter(forestname == "Maple / beech / birch group") %>%
-                  select(forestname, region, dynamic.matched, dynamic.unmatched, static, static.blend, dynamic.blend) %>%
+                  select(forestname, region, dynamic.matched, dynamic.unmatched, static, 
+                         static.blend, dynamic.blend, benchmark) %>%
                   pivot_longer(cols=c(dynamic.matched:dynamic.blend), 
                                names_to = "method", values_to = "meangrow") %>%
-                  mutate(meangrow = meangrow * 2.47) %>%
+                  mutate(meangrow = meangrow * 2.47,
+                         benchmark = benchmark * 2.47) %>%
                   group_by(forestname, region, method) %>%
                   summarize(segrow = sd(meangrow)/sqrt(length(meangrow)),
-                            meangrow = mean(meangrow, na.rm=TRUE)) %>%
+                            meangrow = mean(meangrow, na.rm=TRUE),
+                            benchmark = mean(benchmark)) %>%
                   mutate(method = ifelse(method=="static", "single model - static", 
                                          ifelse(method=="static.blend", "blended model - static",
                                                 ifelse(method=="dynamic.blend", "blended model - dynamic", 
                                                        ifelse(method=="dynamic.matched", 
-                                                              "blended measured - dynamic matched", 
+                                                              "blended measured - dynamic matched",
                                                               "blended measured - dynamic")))),
                          order = factor(method, levels=c('single model - static', 'blended model - static', 
                                                          'blended model - dynamic', 'blended measured - dynamic', 
@@ -155,39 +171,44 @@ mbb.p <- ggplot(allscenarios %>% filter(forestname == "Maple / beech / birch gro
                 aes(x=order, y=meangrow, group=order, fill=order, col=order)) +
   ggtitle("a) Maple / beech / birch group") +
   geom_col(position = position_dodge()) + 
+  geom_hline(aes(yintercept = benchmark), col = "red4", linetype = "dashed") +
   geom_errorbar(aes(ymin = meangrow - segrow, ymax = meangrow + segrow), width=0.2) +
   theme_bw() + theme(legend.position="none") +
   scale_fill_colorblind() + scale_color_colorblind() +  
   facet_wrap(~region) + xlab("") +
   ylab("Avg additional Mg CO2e/ha/yr") + coord_cartesian(ylim=c(-1,8)) +
-  geom_text(aes(label = round(meangrow, digits=2)), vjust=-1.75, col="red4") + 
+  geom_text(aes(label = round(meangrow, digits=2)), vjust=-1.75) + 
   scale_x_discrete(guide = guide_axis(angle=45))
 
 oak.p <- ggplot(allscenarios %>% filter(forestname == "Oak / hickory group") %>%
-                  select(forestname, region, dynamic.matched, dynamic.unmatched, static, static.blend, dynamic.blend) %>%
+                  select(forestname, region, dynamic.matched, dynamic.unmatched, static, 
+                         static.blend, dynamic.blend, benchmark) %>%
                   pivot_longer(cols=c(dynamic.matched:dynamic.blend), 
                                names_to = "method", values_to = "meangrow") %>%
-                  mutate(meangrow = meangrow * 2.47) %>%
+                  mutate(meangrow = meangrow * 2.47,
+                         benchmark = benchmark * 2.47) %>%
                   group_by(forestname, region, method) %>%
                   summarize(segrow = sd(meangrow)/sqrt(length(meangrow)),
-                            meangrow = mean(meangrow, na.rm=TRUE)) %>%
+                            meangrow = mean(meangrow, na.rm=TRUE),
+                            benchmark = mean(benchmark)) %>%
                   mutate(method = ifelse(method=="static", "single model - static", 
                                          ifelse(method=="static.blend", "blended model - static",
                                                 ifelse(method=="dynamic.blend", "blended model - dynamic", 
                                                        ifelse(method=="dynamic.matched", 
-                                                              "blended measured - dynamic matched", 
+                                                              "blended measured - dynamic matched",
                                                               "blended measured - dynamic")))),
                          order = factor(method, levels=c('single model - static', 'blended model - static', 
                                                          'blended model - dynamic', 'blended measured - dynamic', 
-                                                         'blended measured - dynamic matched'))),  
+                                                         'blended measured - dynamic matched'))), 
                 aes(x=order, y=meangrow, group=order, fill=order, col=order)) +
   ggtitle("b) Oak / hickory group") +
   geom_col(position = position_dodge()) + 
+  geom_hline(aes(yintercept = benchmark), col = "red4", linetype = "dashed") +
   geom_errorbar(aes(ymin = meangrow - segrow, ymax = meangrow + segrow), width=0.2) +
   theme_bw() + theme(legend.position="none") +
   scale_fill_colorblind() + scale_color_colorblind() + 
   facet_wrap(~region) + xlab("") +
-  ylab("") + coord_cartesian(ylim=c(-1,8)) +
+  ylab("") + coord_cartesian(ylim=c(-5,8)) +
   geom_text(aes(label = round(meangrow, digits=2)), vjust=-1.75, col="red4") + 
   scale_x_discrete(guide = guide_axis(angle=45))
 
