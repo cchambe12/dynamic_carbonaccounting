@@ -1,5 +1,11 @@
 ##### Very quick script to plot all additionality figures in one place
 ## Started 12 November 2024 by Cat
+## Updated 7 May 2026 by Cat
+
+
+### 8 MAY 2026
+### NEED TO RERUN ALL BAU FILES TO EXCLUDE THE INVYR RESTRICTION +/- 2 YEARS
+### DOUBLE CHECK WHY QMDCHANGE IS MISSING. HAVING ERRORS WITH BUILDING THE QMD DF 
 
 ##### CAT TO WORK ON LINES 266 onward!!! 1 May 2026
 
@@ -172,13 +178,13 @@ mbb.p <- ggplot(allscenarios %>% filter(forestname == "Maple / beech / birch gro
                 aes(x=order, y=meangrow, group=order, fill=order, col=order)) +
   ggtitle("a) Maple / beech / birch group") +
   geom_col(position = position_dodge()) + 
-  geom_hline(aes(yintercept = benchmark), col = "red4", linetype = "dashed") +
+  #geom_hline(aes(yintercept = benchmark), col = "red4", linetype = "dashed") +
   geom_errorbar(aes(ymin = meangrow - segrow, ymax = meangrow + segrow), width=0.2) +
   theme_bw() + theme(legend.position="none") +
   scale_fill_colorblind() + scale_color_colorblind() +  
   facet_wrap(~region) + xlab("") +
-  ylab("Avg additional Mg CO2e/ha/yr") + #coord_cartesian(ylim=c(-1,8)) +
-  geom_text(aes(label = round(meangrow, digits=2)), vjust=-1.75) + 
+  ylab("Avg additional Mg CO2e/ha/yr") + coord_cartesian(ylim=c(0,8)) +
+  geom_text(aes(label = round(meangrow, digits=2)), vjust=-2) + 
   scale_x_discrete(guide = guide_axis(angle=45))
 
 oak.p <- ggplot(allscenarios %>% filter(forestname == "Oak / hickory group") %>%
@@ -204,14 +210,17 @@ oak.p <- ggplot(allscenarios %>% filter(forestname == "Oak / hickory group") %>%
                 aes(x=order, y=meangrow, group=order, fill=order, col=order)) +
   ggtitle("b) Oak / hickory group") +
   geom_col(position = position_dodge()) + 
-  geom_hline(aes(yintercept = benchmark), col = "red4", linetype = "dashed") +
+  #geom_hline(aes(yintercept = benchmark), col = "red4", linetype = "dashed") +
   geom_errorbar(aes(ymin = meangrow - segrow, ymax = meangrow + segrow), width=0.2) +
   theme_bw() + theme(legend.position="none") +
   scale_fill_colorblind() + scale_color_colorblind() + 
   facet_wrap(~region) + xlab("") +
-  ylab("") + #coord_cartesian(ylim=c(-5,8)) +
-  geom_text(aes(label = round(meangrow, digits=2)), vjust=-1.75, col="red4") + 
+  ylab("") + coord_cartesian(ylim=c(0,8)) +
+  geom_text(aes(label = round(meangrow, digits=2)), vjust=-2) + 
   scale_x_discrete(guide = guide_axis(angle=45))
+
+mbb.p + oak.p +
+  plot_layout(ncol = 2, nrow = 1, guides = "collect")
 
 png("figures/method_compare_v2.png", 
     width=10,
@@ -316,11 +325,16 @@ saqmd <- read.csv("southernapps/output/clean_southernapps_fiadata.csv") %>%
 qmd <- full_join(caqmd, neqmd) %>%
   full_join(nwqmd) %>%
   full_join(saqmd) %>%
-  right_join(allscenarios %>% select(plt_cn, forestname, region, dynamic.matched, dynamic.unmatched, static, static.blend, dynamic.blend) %>%
+  right_join(allscenarios %>% 
+               select(plt_cn, forestname, region, dynamic.matched, 
+                      dynamic.unmatched, static, static.blend, dynamic.blend,
+                      fiabau.unmatched, fiabau.matched) %>%
                pivot_longer(cols=c(dynamic.matched:dynamic.blend), names_to = "method", values_to = "meangrow") %>%
+               pivot_longer(cols=c(fiabau.unmatched:fiabau.matched), names_to = "bautype", values_to = "fiabau") %>%
                ungroup() %>%
                group_by(plt_cn, method, region, forestname) %>%
-               summarize(meangrow = mean(meangrow))) %>%
+               summarize(meangrow = mean(meangrow, na.rm=TRUE) * 2.47,
+                         fiabau = mean(fiabau, na.rm = TRUE))) %>%
   ungroup() %>%
   mutate(BAAC = (baac - mean(baac, na.rm=TRUE)) / (sd(baac, na.rm=TRUE)),
          BAremv = (fiabau - mean(fiabau, na.rm=TRUE)) / (sd(fiabau, na.rm=TRUE)),
@@ -336,7 +350,8 @@ qmd <- full_join(caqmd, neqmd) %>%
 
 ################################################################################
 ######################### Run the Bayesian Model ###############################
-diffmod <- brm(meangrow ~ BAremv + BAAC + ChangeQMD + SpDiversity + SiteClass + RdDist + SiteClass + 
+diffmod <- brm(meangrow ~ BAremv + 
+                 BAAC + ChangeQMD + SpDiversity + SiteClass + RdDist + SiteClass + 
                  OverstoryRD + UnderstoryRD + 
                  (1 | method), data=qmd,
                chains = 2, control = list(adapt_delta = 0.99), iter=3000, warmup=2000)
@@ -394,11 +409,15 @@ quantiles_89 <- function(x) {
 }
 
 diffp <- ggplot(qmd %>% mutate(method = ifelse(method=="static", "single model - static", 
-                                  ifelse(method=="static.blend", "blended model - static",
-                                         ifelse(method=="dynamic.blend", "blended model - dynamic", 
-                                                "measured blended - dynamic"))),
-                      order = factor(method, levels=c('single model - static', 'blended model - static', 'blended model - dynamic', 'measured blended - dynamic'))), 
-       aes(x=order, col=order, y=modgrow, group=order, fill=order)) + 
+                                               ifelse(method=="static.blend", "blended model - static",
+                                                      ifelse(method=="dynamic.blend", "blended model - dynamic", 
+                                                             ifelse(method=="dynamic.matched", 
+                                                                    "blended measured - dynamic matched",
+                                                                    "blended measured - dynamic")))),
+                               order = factor(method, levels=c('single model - static', 'blended model - static', 
+                                                               'blended model - dynamic', 'blended measured - dynamic', 
+                                                               'blended measured - dynamic matched'))),
+                aes(x=order, col=order, y=modgrow, group=order, fill=order)) + 
   stat_summary(fun.data = quantiles_89, geom="boxplot",
                width=0.1) + theme_bw() + scale_color_colorblind(name="Method") + 
   scale_fill_colorblind(name="Method") + theme(legend.position = "none") + 

@@ -64,7 +64,7 @@ def run(kwfile: str) -> int:
 
     # Set the path to the FVS lake states variant executable
     #exepath = './open-fvs2/trunk/bin/FVSls.exe'
-    exepath = '/Users/c.chamberlain/Documents/git/ForestVegetationSimulator-Interface-main/bin/FVSls'
+    exepath = '/Users/c.chamberlain/Documents/git/ForestVegetationSimulator/bin/FVSls'
 
     # Write the keyword file to disk
     with open('./input/tmp.key', 'w') as f:

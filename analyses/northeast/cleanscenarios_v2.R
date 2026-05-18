@@ -27,6 +27,8 @@ library(optmatch)
 ### Set the working directory
 setwd("~/Documents/git/dynamic_carbonaccounting/analyses/northeast/")
 
+set.seed(1234)
+
 
 #################################################################################
 #################### STEP 1 - Establish input varibles and ROI ##################
@@ -86,6 +88,12 @@ mbbfvs <- read.csv("fvs/02_carbonaccounting/output/clean_fvsoutput_mbb.csv")
 # Combining states' plots into one dataframe
 allplot <- fia$PLOT
 names(allplot) <- tolower(names(allplot))
+
+allgeom <- fia$PLOTGEOM
+names(allgeom) <- tolower(names(allgeom))
+
+#Appending ecosubcd field from PLOTGEOM table to allplot table - field was recently removed from plot table in FIADB update
+allplot <- merge(x = allplot, y = allgeom[ , c("cn","ecosubcd")], by = c("cn"), all.x=TRUE)
 
 
 ### Add in traits to calculate relative density and also for desirability codes
@@ -244,7 +252,7 @@ dat_grouped <- treeplot %>%
   left_join(forestgroup) %>%
   left_join(carb_factor %>% select(forestname, TOTAL)) %>%
   dplyr::mutate(current = dia >= 5,
-                harv = statuscd.prev == 1 & dia.prev >= 5 & statuscd == 3,
+                harv = statuscd.prev == 1 & dia.prev >= 5 & statuscd == 2,
                 mort = statuscd.prev == 1 & statuscd == 2,
                 prevall = statuscd.prev == 1 & volbfgrs.ac == 0,
                 standall = statuscd == 1 & statuscd.prev == 1,
@@ -375,8 +383,7 @@ datclean <- dat_initial %>%
          qa_status == 1,
          owngrpcd == 40,
          siteclcd <= 6,
-         stdorgcd == 0,
-         (invyr - invyr.prev) <= mean(invyr - invyr.prev, na.rm=TRUE) + 2)
+         stdorgcd == 0)
 
 datclean$harvest <- ifelse(datclean$trtcd1 == 10 | 
                              datclean$baac.perc.cut >= 0.25 & datclean$dstrbcd1 == 0 |
@@ -394,11 +401,12 @@ oakies <- datclean %>%
 
 length(unique(oakies$plt_cn))
 
+table(oakies$ecosub)
+
 #################################################################################
 ################## STEP 3 - Randomly select GMF and GOF plots ###################
 ### Randomly select OH plots with 4 measurements to assess Total C over time
 ### Select both GMF type plots and GOF type plots - or use TC approach with emission reductions
-set.seed(12344321)
 
 oaks <- oakies %>%
   filter(!is.na(prev.plt.cn) & forestname == "Oak / hickory group") %>%
@@ -443,7 +451,7 @@ getgof.oaks <- left_join(getgofc.oaks, getgoft.oaks) %>%
          deltac = ifelse(is.na(deltac), 0, deltac),
          mean.deltac = mean(deltac, na.rm=TRUE))
 
-randomsubset.gof <- sample(unique(getgof.oaks$plt_cn), 10)
+randomsubset.gof <- sample(unique(getgof.oaks$plt_cn), 8)
 
 
 getgof.oaks.final <- getgof.oaks %>%
@@ -482,27 +490,42 @@ donorpool.oaks <- left_join(donorpoolc.oaks, donorpoolt.oaks) %>%
          deltac = ifelse(is.na(deltac), 0, deltac),
          mean.deltac = mean(deltac, na.rm=TRUE))
 
-donorpool.oaks.final <- donorpool.oaks %>%
-  filter(!plt_cn %in% c(randomsubset.gof))
+donorpool.oaks.final <- donorpool.oaks #%>%
+  #filter(!plt_cn %in% c(randomsubset.gof))
 
 write.csv(donorpool.oaks.final, "output/oak_donorpool_plots_v2.csv", row.names = FALSE)
 
 #### APPROACH IV: compare project growth to all donor pool
-## calculate weights for each plot
-compositebaselineIV <- donorpool.oaks.final %>%
-  group_by(time) %>%
-  summarize(deltac.bau = mean(deltac),
-            baac.remv.bau = mean(baac.remv),
-            mean.deltac.bau = mean(mean.deltac)) %>%
+### For each project plot, randomly select 10 donor plots form the same ecosub
+project_ecosub <- getgof.oaks.final %>%
+  select(plt_cn, ecosub) %>%
+  distinct()
+
+random_matches <- project_ecosub %>%
+  rowwise() %>%
+  mutate(matches = list(
+    donorpool.oaks.final %>%
+      filter(ecosub == .data$ecosub) %>%
+      distinct(plt_cn) %>%
+      slice_sample(n = 10, replace = TRUE) %>%
+      pull(plt_cn)
+  )) %>%
+  unnest(matches)
+
+compositebaselineIV <- random_matches %>%
+  left_join(donorpool.oaks.final %>% select(plt_cn, deltac, time, baac.remv, mean.deltac),
+            by = c("matches" = "plt_cn")) %>%
+  group_by(plt_cn, time) %>%
+  summarize(deltac.bau = mean(deltac, na.rm = TRUE),
+            baac.remv.bau = mean(baac.remv, na.rm = TRUE),
+            mean.deltac.bau = mean(mean.deltac, na.rm = TRUE)) %>%
   ungroup() %>%
   mutate(mean.deltac.bau = mean(mean.deltac.bau[time>0]))
 
 project.bauIV <- compositebaselineIV %>%
-  ungroup() %>%
-  left_join(getgof.oaks.final %>% select(plt_cn, deltac, time, baac.remv, mean.deltac), by= c("time")) %>%
+  left_join(getgof.oaks.final %>% select(plt_cn, deltac, time, baac.remv, mean.deltac), by= c("plt_cn", "time")) %>%
   mutate(method = "dynamic - unmatched",
-         benchmark = mean(mean.deltac[time>0])# - mean.deltac.bau
-         )
+         benchmark = mean(mean.deltac[time>0]))
 
 mean(project.bauIV$baac.remv.bau)
 mean(project.bauIV$baac.remv)
@@ -547,7 +570,7 @@ write.csv(allplots, "output/dynamic_matchedplots_oak_v2.csv", row.names = FALSE)
 m.dists <- MatchIt::matchit(tx ~  elev + stdage.prev.prev.prev + qmd.prev.prev.prev + rddistcd +
                               rd.ac.over.prev.prev.prev + siteclcd + 
                               rd.ac.regen.prev.prev.prev + ecosub, data = allplots,
-                            exact = ~ ecosub,
+                            exact = ~ ecosub, method = "nearest",
                             distance="mahalanobis", replace=TRUE, ratio=10)
 
 
@@ -605,21 +628,47 @@ SMDs = goodnessoffit %>%
             sdm_qmd = abs(mean(qmd.proj) - mean(as.numeric(qmd.prev.prev.prev))) / sd(qmd.proj)
             ) %>%
   pivot_longer(cols = c(sdm_elev:sdm_qmd)) %>%
-  mutate(evaluation = ifelse(value >= 0.25, "High", "Okay"))
+  mutate(evaluation = ifelse(value >= 0.30, "High", "Okay"))
 
 if("High" %in% SMDs$evaluation ){print("Revise matching code. Does not meet threshold")} else{print("Matches look good.")}
 
-### RDDIST is high at 0.35, otherwise looks good
+SMDs
+
+#> SMDs
+## A tibble: 7 × 3
+#name          value evaluation
+#<chr>         <dbl> <chr>     
+#  1 sdm_elev     0.215  Okay      
+#2 sdm_stdage   0.221  Okay      
+#3 sdm_rddistcd 0.0510 Okay      
+#4 sdm_rdover   0.142  Okay      
+#5 sdm_siteclcd 0.384  High      
+#6 sdm_rcregen  0.0665 Okay      
+#7 sdm_qmd      0.241  Okay  
 
 ## calculate weights for each plot
-compositebaseline <- matches %>%
+match_distances <- data.frame(
+  plotnames = rownames(m.dists$match.matrix),
+  m.dists$match.matrix,
+  stringsAsFactors = FALSE
+) %>%
+  pivot_longer(-plotnames, names_to = "rank", values_to = "matched_plotname") %>%
+  filter(!is.na(matched_plotname)) %>%
+  mutate(
+    rank = as.integer(sub("X", "", rank)),
+    project = allplots$plt_cn[match(plotnames, allplots$plotnames)],
+    matches = allplots$plt_cn[match(matched_plotname, allplots$plotnames)]
+  )
+
+# Then use actual distances for weighting
+compositebaseline <- match_distances %>%
   group_by(project) %>%
-  mutate(inv.m.dist = (1/matches) * 100,
-         weight = inv.m.dist / sum(inv.m.dist, na.rm = TRUE)) %>%
-  left_join(donorpool.oaks.final %>% select(plt_cn, deltac, time, baac.remv), by= c("matches" = "plt_cn")) %>%
+  mutate(weight = (1 / rank) / sum(1 / rank)) %>%
+  left_join(donorpool.oaks.final %>% select(plt_cn, deltac, time, baac.remv),
+            by = c("matches" = "plt_cn")) %>%
   group_by(project, time) %>%
-  summarize(deltac.bau = weighted.mean(deltac),
-            baac.remv.bau = weighted.mean(baac.remv))
+  summarize(deltac.bau = weighted.mean(deltac, weight, na.rm = TRUE),
+            baac.remv.bau = weighted.mean(baac.remv, weight, na.rm = TRUE))
 
 project.bau <- compositebaseline %>%
   ungroup() %>%
@@ -686,14 +735,14 @@ dev.off()
 ### Select GOF type plots
 ###################################################################################################
 ###################################################################################################
-set.seed(1234321)
 mbbies <- datclean %>%
-  filter(forestname == "Maple / beech / birch group", 
-         volbfgrs.ac.initial >= 2000,
+  filter(forestname == "Maple / beech / birch group",
          plt_cn %in% unique(mbbfvs$plt_cn))
 
+table(mbbies$ecosub)
+
 mbbs <- mbbies %>%
-  filter(!is.na(prev.plt.cn)) %>%
+  filter(!is.na(prev.plt.cn), ecosub %in% c("M211", "211")) %>%
   mutate(get_removals = plyr::round_any(round(baac.remv, digits=2)*100, 5, f = floor),
          unitname = as.numeric(paste0(statecd, unitcd)))
 
@@ -777,21 +826,36 @@ donorpool.mbbs.final <- donorpool.mbbs %>%
 write.csv(donorpool.mbbs.final, "output/mbb_donorpool_plots_v2.csv", row.names = FALSE)
 
 #### APPROACH IV: compare project growth to all donor pool
-## calculate weights for each plot
-compositebaselineIV <- donorpool.mbbs.final %>%
-  group_by(time) %>%
-  summarize(deltac.bau = mean(deltac),
-            baac.remv.bau = mean(baac.remv),
-            mean.deltac.bau = mean(mean.deltac)) %>%
+### For each project plot, randomly select 10 donor plots form the same ecosub
+project_ecosub <- getgof.mbbs.final %>%
+  select(plt_cn, ecosub) %>%
+  distinct()
+
+random_matches <- project_ecosub %>%
+  rowwise() %>%
+  mutate(matches = list(
+    donorpool.mbbs.final %>%
+      filter(ecosub == .data$ecosub) %>%
+      distinct(plt_cn) %>%
+      slice_sample(n = 10, replace = TRUE) %>%
+      pull(plt_cn)
+  )) %>%
+  unnest(matches)
+
+compositebaselineIV <- random_matches %>%
+  left_join(donorpool.mbbs.final %>% select(plt_cn, deltac, time, baac.remv, mean.deltac),
+            by = c("matches" = "plt_cn")) %>%
+  group_by(plt_cn, time) %>%
+  summarize(deltac.bau = mean(deltac, na.rm = TRUE),
+            baac.remv.bau = mean(baac.remv, na.rm = TRUE),
+            mean.deltac.bau = mean(mean.deltac, na.rm = TRUE)) %>%
   ungroup() %>%
   mutate(mean.deltac.bau = mean(mean.deltac.bau[time>0]))
 
 project.bauIV <- compositebaselineIV %>%
-  ungroup() %>%
-  left_join(getgof.mbbs.final %>% select(plt_cn, deltac, time, baac.remv, mean.deltac), by= c("time")) %>%
+  left_join(getgof.mbbs.final %>% select(plt_cn, deltac, time, baac.remv, mean.deltac), by= c("plt_cn", "time")) %>%
   mutate(method = "dynamic - unmatched",
-         benchmark = mean(mean.deltac[time>0]) #- mean.deltac.bau
-         )
+         benchmark = mean(mean.deltac[time>0]))
 
 mean(project.bauIV$baac.remv.bau)
 mean(project.bauIV$baac.remv)
@@ -836,7 +900,7 @@ write.csv(allplots, "output/dynamic_matchedplots_mbb_v2.csv", row.names = FALSE)
 m.dists <- MatchIt::matchit(tx ~  elev + stdage.prev.prev.prev + qmd.prev.prev.prev + rddistcd +
                               rd.ac.over.prev.prev.prev + siteclcd + 
                               rd.ac.regen.prev.prev.prev + ecosub, data = allplots,
-                            exact = ~ ecosub,
+                            exact = ~ ecosub, method = "nearest",
                             distance="mahalanobis", replace=TRUE, ratio=10)
 
 
@@ -898,14 +962,28 @@ if("High" %in% SMDs$evaluation ){print("Revise matching code. Does not meet thre
 ### STDAGE is high at 0.28, otherwise looks good
 
 ## calculate weights for each plot
-compositebaseline <- matches %>%
+match_distances <- data.frame(
+  plotnames = rownames(m.dists$match.matrix),
+  m.dists$match.matrix,
+  stringsAsFactors = FALSE
+) %>%
+  pivot_longer(-plotnames, names_to = "rank", values_to = "matched_plotname") %>%
+  filter(!is.na(matched_plotname)) %>%
+  mutate(
+    rank = as.integer(sub("X", "", rank)),
+    project = allplots$plt_cn[match(plotnames, allplots$plotnames)],
+    matches = allplots$plt_cn[match(matched_plotname, allplots$plotnames)]
+  )
+
+# Then use actual distances for weighting
+compositebaseline <- match_distances %>%
   group_by(project) %>%
-  mutate(inv.m.dist = (1/matches) * 100,
-         weight = inv.m.dist / sum(inv.m.dist, na.rm = TRUE)) %>%
-  left_join(donorpool.mbbs.final %>% select(plt_cn, deltac, time, baac.remv), by= c("matches" = "plt_cn")) %>%
+  mutate(weight = (1 / rank) / sum(1 / rank)) %>%
+  left_join(donorpool.mbbs.final %>% select(plt_cn, deltac, time, baac.remv),
+            by = c("matches" = "plt_cn")) %>%
   group_by(project, time) %>%
-  summarize(deltac.bau = weighted.mean(deltac),
-            baac.remv.bau = weighted.mean(baac.remv))
+  summarize(deltac.bau = weighted.mean(deltac, weight, na.rm = TRUE),
+            baac.remv.bau = weighted.mean(baac.remv, weight, na.rm = TRUE))
 
 project.bau <- compositebaseline %>%
   ungroup() %>%

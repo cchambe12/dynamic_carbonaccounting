@@ -1,5 +1,6 @@
 ### Import FVS runs from Python/OneDrive
 ## Started 27 October 2024 by Cat
+### Updated 7 May 2026 by Cat
 
 
 ### housekeeping
@@ -48,13 +49,13 @@ tables <- dbListTables(con)
 #summary table
 summary <- dbGetQuery(conn=con, 
                       statement=paste("SELECT * FROM '",
-                                      tables[[match("FVS_Summary_East",tables)]],
+                                      tables[[match("FVS_Summary",tables)]],
                                       "'", sep=""))
 
 #cut list
 cut <- dbGetQuery(conn=con, 
                   statement=paste("SELECT * FROM '", 
-                                  tables[[match("FVS_CutList_East",tables)]],
+                                  tables[[match("FVS_CutList",tables)]],
                                   "'", sep=""))
 
 #Get the lookup for Stand_CN
@@ -84,7 +85,7 @@ carb <- dbGetQuery(conn=con,
 #Tree list
 tl <- dbGetQuery(conn=con, 
                  statement=paste("SELECT * FROM '",
-                                 tables[[match("FVS_TreeList_East",tables)]], 
+                                 tables[[match("FVS_TreeList",tables)]], 
                                  "'", sep=""))
 
 #Disconnect the database

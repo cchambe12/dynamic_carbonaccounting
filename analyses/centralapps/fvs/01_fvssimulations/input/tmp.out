@@ -1,6 +1,6 @@
 
 
-     FOREST VEGETATION SIMULATOR     VERSION FS2024.2 -- NORTHEAST                              RV:20240401    05-07-2026  08:32:00
+     FOREST VEGETATION SIMULATOR     VERSION FS2025.4 -- NORTHEAST                              RV:20250930    05-07-2026  11:40:30
 
 ----------------------------------------------------------------------------------------------------------------------------------
 
@@ -52,3 +52,747 @@ END        END OF DATA BASE OPTIONS.
 DATABASE   DATABASE KEYWORDS:
 
 DSNIN      INPUT DATA BASE IS ./db/FIADB_WV.db
+
+STANDSQL   STANDSQL COMMAND FOR INPUT DATA BASE: ./db/FIADB_WV.db
+           SELECT * FROM FVS_STANDINIT_PLOT WHERE Stand_CN = '%Stand_CN%'
+
+           STAND-LEVEL DATA BASE READ:
+           INV_YEAR:               2024
+           REGION:                    9
+           FOREST:                   21
+            COMPOSITE LOC:          921
+           LOCATION:                921
+           LONGITUDE:          -80.5413
+           LATITUDE:            40.0552
+           AGE:                      60
+           ASPECT:                 75.0
+           SLOPE:                 15.00
+           ELEVFT:                990.0 CONVERTED TO:    9.9
+           BASAL_AREA_FACTOR:     -24.0
+           INV_PLOT_SIZE:          300.
+           BRK_DBH:                 5.0
+           NUM_PLOTS:                 4
+           SAM_WT:          5817.109375
+           DG_TRANS:                  1
+           DG_MEASURE:              7.0
+           HTG_TRANS:                 1
+           HTG_MEASURE:             7.0
+           MORT_MEASURE:            7.0
+           SITE_SPECIES:            541 MAPPED TO INTERNAL CODE: WA
+           SITE_INDEX:             71.0 FOR SPECIES: WA
+           PHYSIO_REGION:            22
+           STATE:                    54
+           COUNTY:                   69
+           END OF DATA BASE READ.
+
+TREESQL    TREESQL COMMAND FOR INPUT DATA BASE: ./db/FIADB_WV.db
+           SELECT * FROM FVS_TREEINIT_PLOT WHERE Stand_CN = '%Stand_CN%'
+           STAND_CN           WAS IGNORED
+           STAND_ID           WAS IGNORED
+           PLOT_CN            WAS IGNORED
+           STANDPLOT_CN       WAS IGNORED
+           STANDPLOT_ID       WAS IGNORED
+           PLOT_ID            WAS USED
+           TREE_CN            WAS IGNORED
+           TREE_ID            WAS USED
+           TAG_ID             WAS IGNORED
+           DISTANCE           WAS IGNORED
+           SITE_TREE_FLAG     WAS IGNORED
+           TREE_COUNT         WAS USED
+           MORT_AGENT         WAS IGNORED
+           WDLND_STEMS        WAS USED
+           HISTORY            WAS USED
+           SPECIES            WAS USED
+           DIAMETER           WAS USED
+           DIAMETER_HTCD      WAS IGNORED
+           DG                 WAS USED
+           HT                 WAS USED
+           HTG                WAS USED
+           HTTOPK             WAS USED
+           HTBOLE             WAS IGNORED
+           TPBOLE             WAS IGNORED
+           HTSAW              WAS IGNORED
+           TPSAW              WAS IGNORED
+           HT_TO_CROWN_BASE   WAS IGNORED
+           CRRATIO            WAS USED
+           UNCRRATIO          WAS IGNORED
+           CRCLASS            WAS IGNORED
+           DAMAGE1            WAS USED
+           SEVERITY1          WAS USED
+           DAMAGE2            WAS USED
+           SEVERITY2          WAS USED
+           DAMAGE3            WAS USED
+           SEVERITY3          WAS USED
+           DEFECT_CUBIC       WAS IGNORED
+           DEFECT_BOARD       WAS IGNORED
+           TREEVALUE          WAS USED
+           PRESCRIPTION       WAS USED
+           AGE                WAS USED
+           BH_YEARS           WAS IGNORED
+           SLOPE              WAS USED
+           ASPECT             WAS USED
+           PV_CODE            WAS USED
+           PV_REF_CODE        WAS IGNORED
+           TOPOCODE           WAS USED
+           SITEPREP           WAS USED
+           CREATED_DATE       WAS IGNORED
+           MODIFIED_DATE      WAS IGNORED
+           VERSION            WAS IGNORED
+           CULL               WAS USED
+           DECAYCD            WAS USED
+           NUMBER ROWS PROCESSED:   25
+
+END        END OF DATA BASE OPTIONS.
+
+
+            
+
+TREELIST   DATE/CYCLE=    0; DATA SET REFERENCE NUMBER =  0.; HEADING SUPPRESSION CODE = 0.
+           (0=WITH HEADING, OTHER VALUES=SUPPRESS HEADING).
+
+CUTLIST    DATE/CYCLE=    0; DATA SET REFERENCE NUMBER =  0.; HEADING SUPPRESSION CODE = 0.
+           (0=WITH HEADING, OTHER VALUES=SUPPRESS HEADING).
+
+ATRTLIST   DATE/CYCLE=    0; DATA SET REFERENCE NUMBER =  0.; HEADING SUPPRESSION CODE = 0.
+           (0=WITH HEADING, OTHER VALUES=SUPPRESS HEADING).
+
+CALBSTAT   CALIBRATION STATISTICS WILL BE WRITTEN TO FILE REFERENCED BY NUMBER 13
+           MINIMUM NUMBER OF DIA. GROWTH OBSERVATIONS PER SPECIES TO CALIBRATE 
+           THE LARGE TREE DIAMETER INCREMENT MODEL FOR LOCAL CONDITIONS=     5.
+           MINIMUM NUMBER OF HEIGHT GROWTH OBSERVATIONS PER SPECIES TO CALIBRATE 
+           THE SMALL TREE HEIGHT INCREMENT MODEL FOR LOCAL CONDITIONS=      5
+
+STATS      STATISTICAL DESCRIPTION OF INPUT DATA WILL BE PROVIDED; CONFIDENCE LIMITS AT 0.05 LEVEL.
+
+STRCLASS   STAND STRUCTURAL CLASSES WILL BE COMPUTED.
+           OUTPUT PRINTING CODE =  1. (0=NO OUTPUT, 1=PRINT)
+           THE PERCENTAGE OF A TREE HEIGHT THAT A GAP MUST EXCEED =          30.0
+           THE DBH BREAK BETWEEN SEEDLING/SAPLINGS AND POLE-SIZED TREES =     5.0
+           THE DBH BREAK BETWEEN POLE-SIZED AND LARGE, OLDER, TREES =        25.0
+           THE MINIMUM COVER PERCENT TO QUALIFY A POTENTIAL STRATUM =         5.0
+           THE MINIMUM TREE/ACRE TO BE CLASSIFIED STAND INITIATION =        200.0
+           THE MINIMUM PERCENT OF MAXSDI TO BE CLASSIFIED STEM EXCLUSION =   30.0
+
+
+            
+
+FMIN       FIRE MODEL KEYWORDS:
+
+CARBREPT   THE MAIN CARBON REPORT WILL BE PRINTED.
+
+END        END OF FIRE MODEL OPTIONS.
+
+
+            
+
+DATABASE   DATABASE KEYWORDS:
+
+TREELIDB   TREE INFORMATION FROM OUTPUT SENT TO SPECIFIED DATABASE.
+           CREATE TEXT FILE REPORT: NO 
+           SPECIES CODE OUTPUT FORMAT: NORMAL  
+
+CUTLIDB    CUTS INFORMATION FROM OUTPUT SENT TO SPECIFIED DATABASE.
+           SPECIES CODE OUTPUT FORMAT: NORMAL  
+           CREATE TEXT FILE REPORT: NO 
+
+ATRTLIDB   TREE INFORMATION FROM OUTPUT SENT TO SPECIFIED DATABASE.
+           SPECIES CODE OUTPUT FORMAT: NORMAL  
+           CREATE TEXT FILE REPORT: NO 
+
+CALBSTDB   CALIBRATION STATISTICS TABLE SENT TO SPECIFIED DATABASE.
+
+INVSTATS   INVENTORY STATISTICS TABLES SENT TO SPECIFIED DATABASE.
+
+STRCLSDB   STRUCTURE CLASS INFO SENT TO SPECIFIED DATABASE.
+           INCLUDE REPORT IN OUT FILE: YES
+           DATABASE TABLE AND STANDARD OUTPUT ARE GENERATED
+
+
+            
+
+CARBREDB   CARBON REPORTS SENT TO SPECIFIED DATABASE.
+           INCLUDE REPORT IN OUT FILE: NO 
+           ONLY THE DATABASE TABLE IS GENERATED
+
+
+            
+
+SUMMARY    SUMMARY STATISTICS SENT TO DATABASE.
+
+COMPUTDB   COMPUTE VARIABLES SENT TO SPECIFIED DATABASE.
+           ADD NEW VARIABLES TO EXISTING TABLE: YES
+           INCLUDE VARIABLES STARTING WITH UNDERSCORE: NO 
+
+END        END OF DATA BASE OPTIONS.
+
+
+            
+
+COMPUTE    DATE/CYCLE=    0; DEFINE THE FOLLOWING:
+
+           BAtarget = 0.60*BBA
+
+END
+
+
+            
+
+IF         MINIMUM DELAY TIME BETWEEN RESPONSES TO THE EVENT =     1
+
+           BBA GE 90
+
+THEN       ACTIVITIES WHICH FOLLOW WILL NOT BE SCHEDULED UNTIL THE EVENT HAPPENS (WHEN THE LOGICAL EXPRESSION IS TRUE).
+
+THINDBH    DATE/CYCLE=    0;   PARMS(0, 999, 1, ALL, 0, BATARGET)                         
+
+ENDIF      ACTIVITIES WHICH FOLLOW WILL BE SCHEDULED.
+
+
+            
+
+PROCESS    PROCESS THE STAND.
+----------------------------------------------------------------------------------------------------------------------------------
+
+                                                OPTIONS SELECTED BY DEFAULT
+
+----------------------------------------------------------------------------------------------------------------------------------
+
+TREEFMT    (I4,T1,I7,F6.0,I1,A3,F4.1,F3.1,2F3.0,F4.1,I1,3(I2,I2),2I1,I2,2I3,2I1,F3.0)      
+                                                                                           
+
+DESIGN     BASAL AREA FACTOR=  -24.0; INVERSE OF FIXED PLOT AREA=  300.0; BREAK DBH=    5.0
+           NUMBER OF PLOTS=     4; NON-STOCKABLE PLOTS=     0; STAND SAMPLING WEIGHT=  5817.10938
+           PROPORTION OF STAND CONSIDERED STOCKABLE=  1.000
+
+           HABITAT TYPE IS NOT USED IN THIS VARIANT
+
+STDINFO    FOREST-LOCATION CODE=     921; HABITAT TYPE=  0; AGE=   60; ASPECT AZIMUTH IN DEGREES=  75.; SLOPE=  15.%
+           ELEVATION(100'S FEET)=  9.9;  REFERENCE CODE=     ; ECOREGION=       220 
+
+SPECIES      BF      TA      WS      RS      NS      BS      PI      RN      WP      LP
+SDI MAX      655     387     412     506     412     500     412     505     529     480
+
+SPECIES      VP      WC      AW      RC      JU      EH      HM      OP      JP      SP
+SDI MAX      499     771     771     354     354     510     518     529     356     490
+
+SPECIES      TM      PP      PD      SC      OS      RM      SM      BM      SV      YB
+SDI MAX      398     398     310     408     354     421     371     371     590     369
+
+SPECIES      SB      RB      PB      GB      HI      PH      SL      SH      MH      AB
+SDI MAX      350     400     466     466     302     276     302     302     230     364
+
+SPECIES      AS      WA      BA      GA      PA      YP      SU      CT      QA      BP
+SDI MAX      414     408     423     414     408     478     430     415     562     384
+
+SPECIES      EC      BT      PY      BC      WO      BR      CK      PO      OK      SO
+SDI MAX      648     520     648     384     361     423     336     311     361     315
+
+SPECIES      QI      WK      PN      CO      SW      SN      RO      SK      BO      CB
+SDI MAX      370     365     455     417     361     336     414     342     370     405
+
+SPECIES      __      BU      YY      WR      HK      PS      HY      BN      WN      OO
+SDI MAX      492     371     371     400     420     147     155     283     283     404
+
+SPECIES      MG      MV      AP      WT      BG      SD      PW      SY      WL      BK
+SDI MAX      492     492     422     726     430     164     164     499     315     343
+
+SPECIES      BL      SS      BW      WB      EL      AE      RL      OH      BE      ST
+SDI MAX      447     492     526     526     282     282     227     257     344     243
+
+SPECIES      AI      SE      AH      DW      HT      HH      PL      PR
+SDI MAX      343     657     375     257     463     304     463     463
+
+                                  NATIONAL VOLUME ESTIMATOR LIBRARY EQUATION NUMBERS
+SPECIES  CUBIC FOOT BOARD FOOT SPECIES  CUBIC FOOT BOARD FOOT SPECIES  CUBIC FOOT BOARD FOOT SPECIES  CUBIC FOOT BOARD FOOT 
+------- ----------- ---------- ------- ----------- ---------- ------- ----------- ---------- ------- ----------- ---------- 
+  BF    900CLKE012  900CLKE012   TA    900CLKE071  900CLKE071   WS    900CLKE094  900CLKE094   RS    900CLKE097  900CLKE097
+  NS    900CLKE091  900CLKE091   BS    900CLKE095  900CLKE095   PI    900CLKE090  900CLKE090   RN    900CLKE125  900CLKE125
+  WP    900CLKE129  900CLKE129   LP    900CLKE131  900CLKE131   VP    900CLKE132  900CLKE132   WC    900CLKE241  900CLKE241
+  AW    900CLKE043  900CLKE043   RC    900CLKE068  900CLKE068   JU    900CLKE057  900CLKE057   EH    900CLKE261  900CLKE261
+  HM    900CLKE260  900CLKE260   OP    900CLKE100  900CLKE100   JP    900CLKE105  900CLKE105   SP    900CLKE110  900CLKE110
+  TM    900CLKE123  900CLKE123   PP    900CLKE126  900CLKE126   PD    900CLKE128  900CLKE128   SC    900CLKE130  900CLKE130
+  OS    900CLKE299  900CLKE299   RM    900CLKE316  900CLKE316   SM    900CLKE318  900CLKE318   BM    900CLKE314  900CLKE314
+  SV    900CLKE317  900CLKE317   YB    900CLKE371  900CLKE371   SB    900CLKE372  900CLKE372   RB    900CLKE373  900CLKE373
+  PB    900CLKE375  900CLKE375   GB    900CLKE379  900CLKE379   HI    900CLKE400  900CLKE400   PH    900CLKE403  900CLKE403
+  SL    900CLKE405  900CLKE405   SH    900CLKE407  900CLKE407   MH    900CLKE409  900CLKE409   AB    900CLKE531  900CLKE531
+  AS    900CLKE540  900CLKE540   WA    900CLKE541  900CLKE541   BA    900CLKE543  900CLKE543   GA    900CLKE544  900CLKE544
+  PA    900CLKE545  900CLKE545   YP    900CLKE621  900CLKE621   SU    900CLKE611  900CLKE611   CT    900CLKE651  900CLKE651
+  QA    900CLKE746  900CLKE746   BP    900CLKE741  900CLKE741   EC    900CLKE742  900CLKE742   BT    900CLKE743  900CLKE743
+  PY    900CLKE744  900CLKE744   BC    900CLKE762  900CLKE762   WO    900CLKE802  900CLKE802   BR    900CLKE823  900CLKE823
+  CK    900CLKE826  900CLKE826   PO    900CLKE835  900CLKE835   OK    900CLKE800  900CLKE800   SO    900CLKE806  900CLKE806
+  QI    900CLKE817  900CLKE817   WK    900CLKE827  900CLKE827   PN    900CLKE830  900CLKE830   CO    900CLKE832  900CLKE832
+  SW    900CLKE804  900CLKE804   SN    900CLKE825  900CLKE825   RO    900CLKE833  900CLKE833   SK    900CLKE812  900CLKE812
+  BO    900CLKE837  900CLKE837   CB    900CLKE813  900CLKE813   __    900CLKE000  900CLKE000   BU    900CLKE330  900CLKE330
+  YY    900CLKE332  900CLKE332   WR    900CLKE374  900CLKE374   HK    900CLKE462  900CLKE462   PS    900CLKE521  900CLKE521
+  HY    900CLKE591  900CLKE591   BN    900CLKE601  900CLKE601   WN    900CLKE602  900CLKE602   OO    900CLKE641  900CLKE641
+  MG    900CLKE650  900CLKE650   MV    900CLKE653  900CLKE653   AP    900CLKE660  900CLKE660   WT    900CLKE691  900CLKE691
+  BG    900CLKE693  900CLKE693   SD    900CLKE711  900CLKE711   PW    900CLKE712  900CLKE712   SY    900CLKE731  900CLKE731
+  WL    900CLKE831  900CLKE831   BK    900CLKE901  900CLKE901   BL    900CLKE922  900CLKE922   SS    900CLKE931  900CLKE931
+  BW    900CLKE951  900CLKE951   WB    900CLKE952  900CLKE952   EL    900CLKE970  900CLKE970   AE    900CLKE972  900CLKE972
+  RL    900CLKE975  900CLKE975   OH    900CLKE998  900CLKE998   BE    900CLKE313  900CLKE313   ST    900CLKE315  900CLKE315
+  AI    900CLKE341  900CLKE341   SE    900CLKE356  900CLKE356   AH    900CLKE391  900CLKE391   DW    900CLKE491  900CLKE491
+  HT    900CLKE500  900CLKE500   HH    900CLKE701  900CLKE701   PL    900CLKE760  900CLKE760   PR    900CLKE761  900CLKE761
+
+SITECODE   SITE INDEX INFORMATION:
+            BF=   63.;  TA=   61.;  WS=   61.;  RS=   61.;  NS=   61.;  BS=   61.;  PI=   61.;  RN=   78.; WP=   78.
+            LP=   78.;  VP=   78.;  WC=   53.;  AW=   53.;  RC=   53.;  JU=   53.;  EH=   63.;  HM=   63.; OP=   78.
+            JP=   78.;  SP=   78.;  TM=   78.;  PP=   78.;  PD=   78.;  SC=   78.;  OS=   78.;  RM=   67.; SM=   67.
+            BM=   67.;  SV=   67.;  YB=   67.;  SB=   67.;  RB=   67.;  PB=   67.;  GB=   67.;  HI=   67.; PH=   67.
+            SL=   67.;  SH=   67.;  MH=   67.;  AB=   67.;  AS=   71.;  WA=   71.;  BA=   71.;  GA=   71.; PA=   71.
+            YP=   73.;  SU=   73.;  CT=   73.;  QA=   73.;  BP=   73.;  EC=   73.;  BT=   73.;  PY=   73.; BC=   73.
+            WO=   67.;  BR=   67.;  CK=   67.;  PO=   67.;  OK=   67.;  SO=   69.;  QI=   69.;  WK=   69.; PN=   69.
+            CO=   67.;  SW=   67.;  SN=   67.;  RO=   69.;  SK=   69.;  BO=   69.;  CB=   69.;  __=   61.; BU=   61.
+            YY=   61.;  WR=   61.;  HK=   61.;  PS=   61.;  HY=   61.;  BN=   61.;  WN=   61.;  OO=   61.; MG=   61.
+            MV=   61.;  AP=   61.;  WT=   61.;  BG=   61.;  SD=   61.;  PW=   61.;  SY=   61.;  WL=   61.; BK=   61.
+            BL=   61.;  SS=   61.;  BW=   61.;  WB=   61.;  EL=   61.;  AE=   61.;  RL=   61.;  OH=   53.; BE=   53.
+            ST=   53.;  AI=   53.;  SE=   53.;  AH=   53.;  DW=   53.;  HT=   53.;  HH=   53.;  PL=   53.; PR=   53.
+           SITE SPECIES=WA CODE=   42
+
+INVENTORY POINT CROSS REFERENCE (FVS SEQUENTIAL POINT NUMBER = POINT NUMBER AS ENTERED IN THE INPUT DATA):
+  1=       1;   2=       2;   3=       3;   4=       4
+----------------------------------------------------------------------------------------------------------------------------------
+
+
+                                                     ACTIVITY SCHEDULE
+
+STAND ID= MBB_BAU                       MGMT ID= WV                                                                              
+
+----------------------------------------------------------------------------------------------------------------------------------
+
+CYCLE  DATE  EXTENSION  KEYWORD   DATE  PARAMETERS:
+-----  ----  ---------  --------  ----  ------------------------------------------------------------------------------------------
+
+   1   2024
+               BASE     TREELIST  2024       0.0000     0.0000
+               BASE     CUTLIST   2024       0.0000     0.0000
+               BASE     ATRTLIST  2024       0.0000     0.0000
+               CMPU     BATARGET  2024       0.0000
+
+   2   2029
+               BASE     TREELIST  2029       0.0000     0.0000
+               BASE     CUTLIST   2029       0.0000     0.0000
+               BASE     ATRTLIST  2029       0.0000     0.0000
+               CMPU     BATARGET  2029       0.0000
+
+   3   2034
+               BASE     TREELIST  2034       0.0000     0.0000
+               BASE     CUTLIST   2034       0.0000     0.0000
+               BASE     ATRTLIST  2034       0.0000     0.0000
+               CMPU     BATARGET  2034       0.0000
+
+   4   2039
+               BASE     TREELIST  2039       0.0000     0.0000
+               BASE     CUTLIST   2039       0.0000     0.0000
+               BASE     ATRTLIST  2039       0.0000     0.0000
+               CMPU     BATARGET  2039       0.0000
+
+   5   2044
+               BASE     TREELIST  2044       0.0000     0.0000
+               BASE     CUTLIST   2044       0.0000     0.0000
+               BASE     ATRTLIST  2044       0.0000     0.0000
+               CMPU     BATARGET  2044       0.0000
+
+   6   2049
+               BASE     TREELIST  2049       0.0000     0.0000
+               BASE     CUTLIST   2049       0.0000     0.0000
+               BASE     ATRTLIST  2049       0.0000     0.0000
+               CMPU     BATARGET  2049       0.0000
+----------------------------------------------------------------------------------------------------------------------------------
+
+
+CALIBRATION STATISTICS:
+
+
+                                                 BC    HT    BE    RL    WA
+                                                ----  ----  ----  ----  ----
+
+NUMBER OF RECORDS PER SPECIES                     14     1     7     1     2
+
+NUMBER OF RECORDS CODED AS RECENT MORTALITY        2     0     0     0     0
+
+NUMBER OF RECORDS WITH MISSING HEIGHTS             0     0     1     0     2
+
+NUMBER OF RECORDS WITH BROKEN OR DEAD TOPS         1     0     0     1     0
+
+NUMBER OF RECORDS WITH MISSING CROWN RATIOS        0     0     1     0     2
+
+NUMBER OF RECORDS AVAILABLE FOR SCALING
+THE DIAMETER INCREMENT MODEL                      10     1     0     0     0
+
+RATIO OF STANDARD ERRORS
+(INPUT DBH GROWTH DATA : MODEL)                13.01  1.00  1.00  1.00  1.00
+
+WEIGHT GIVEN TO THE INPUT GROWTH DATA WHEN
+DBH GROWTH MODEL SCALE FACTORS WERE COMPUTED    0.57  0.00  0.00  0.00  0.00
+
+INITIAL SCALE FACTORS FOR THE
+DBH INCREMENT MODEL                             0.87  1.00  1.00  1.00  1.00
+
+NUMBER OF RECORDS AVAILABLE FOR SCALING
+THE SMALL TREE HEIGHT INCREMENT MODEL             0     0     2     0     0
+
+INITIAL SCALE FACTORS FOR THE SMALL TREE
+HEIGHT INCREMENT MODEL                          1.00  1.00  1.00  1.00  1.00
+
+NUMBER OF RECORDS WITH MISTLETOE                   0     0     0     0     0
+
+
+        GENERAL SPECIES SUMMARY FOR THE CRUISE (PER ACRE)
+
+  SPECIES             TREES       BASAL AREA       CUBIC FEET       BOARD FEET       ABOVE GROUND BIOMASS       ABOVE GROUND CARBON
+-----------------------------------------------------------------------------------------------------------------------------------
+ WA  =  WA            600.0              0.0              0.0             0.0                         0.0                       0.0
+ BC  =  BC             66.0             58.9           1994.6          7362.0                         0.0                       0.0
+ RL  =  RL              6.0              4.1             63.7             0.0                         0.0                       0.0
+ BE  =  BE            525.0             10.4            112.5             0.0                         0.0                       0.0
+ HT  =  HT              6.0              1.6             17.4             0.0                         0.0                       0.0
+
+
+                  DISTRIBUTION OF STAND ATTRIBUTES AMONG SAMPLE POINTS
+
+                              STANDARD  COEFF OF SAMPLE             95%           SAMPLING ERROR IN
+CHARACTERISTIC          MEAN DEVIATION VARIATION   SIZE     CONFIDENCE  LIMITS    PERCENT     UNITS
+----------------   --------- --------- --------- ------ ----------------------    -----------------
+TREES/ACRE           1203.00    836.47      0.70      4      0.00      2534.01     110.6     1331.0
+BASAL AREA/ACRE        74.94     50.15      0.67      4      0.00       154.74     106.5       79.8
+CUBIC FEET/ACRE      2188.22   1865.74      0.85      4      0.00      5157.02     135.7     2968.8
+BOARD FEET/ACRE      7362.00   6179.01      0.84      4      0.00     17194.19     133.6     9832.2
+ABVGRD BIOMASS/ACRE     0.00      0.00
+ABVGRD CARB/ACRE        0.00      0.00
+
+
+     FOREST VEGETATION SIMULATOR     VERSION FS2025.4 -- NORTHEAST                              RV:20250930    05-07-2026  11:40:30
+
+STAND ID: MBB_BAU                       MGMT ID: WV       
+
+
+                                        STAND COMPOSITION (BASED ON STOCKABLE AREA)
+--------------------------------------------------------------------------------------------------------------------------
+                            PERCENTILE POINTS IN THE
+                     DISTRIBUTION OF STAND ATTRIBUTES BY DBH      TOTAL/ACRE
+        STAND       -----------------------------------------      OF STAND         DISTRIBUTION OF STAND ATTRIBUTES BY
+YEAR  ATTRIBUTES      10     30     50     70     90    100       ATTRIBUTES       SPECIES AND 3 USER-DEFINED SUBCLASSES
+----  -----------   ------ ------ ------ ------ ------ ------   --------------  ------------------------------------------
+                                 (DBH IN INCHES)
+
+
+
+2024  TREES           0.1    0.1    0.1    1.6    3.2    20.1    1203. TREES     50.% WA1,  44.% BE1,   5.% BC1,   0.% HT1
+      VOLUME:  
+        TOTAL        10.5   11.6   12.9   15.4   20.1    20.1    2188. CUFT      91.% BC1,   5.% BE1,   3.% RL1,   1.% HT1
+        MERCH        11.2   12.4   13.5   15.4   20.1    20.1    2027. CUFT      96.% BC1,   3.% RL1,   1.% HT1,   0.% ---
+        CUBIC SAW    11.6   13.5   13.6   20.1   20.1    20.1    1253. CUFT     100.% BC1,   0.% ---,   0.% ---,   0.% ---
+        MERCH        11.6   13.5   15.4   20.1   20.1    20.1    7362. BDFT     100.% BC1,   0.% ---,   0.% ---,   0.% ---
+
+
+      ACCRETION       2.5   11.2   12.4   13.6   20.1    20.1      69. CUFT/YR   80.% BC1,  17.% BE1,   2.% RL1,   1.% HT1
+      MORTALITY       1.6    3.2    7.3   12.4   15.4    20.1       0. CUFT/YR   52.% BC1,  31.% BE1,  11.% HT1,   6.% RL1
+
+
+
+2029  TREES           0.8    0.8    0.8    2.1    3.5    20.7    1195. TREES     50.% WA1,  44.% BE1,   6.% BC1,   1.% RL1
+      VOLUME:  
+        TOTAL         8.1   12.2   13.5   16.0   20.7    20.7    2533. CUFT      90.% BC1,   7.% BE1,   3.% RL1,   1.% HT1
+        MERCH        11.1   13.0   14.1   16.0   20.7    20.7    2316. CUFT      96.% BC1,   3.% RL1,   1.% HT1,   0.% ---
+        CUBIC SAW    12.2   13.5   14.2   16.0   20.7    20.7    1586. CUFT      97.% BC1,   3.% RL1,   0.% ---,   0.% ---
+        MERCH        12.2   13.5   14.2   20.7   20.7    20.7    9646. BDFT      98.% BC1,   2.% RL1,   0.% ---,   0.% ---
+
+
+      ACCRETION       0.8    2.9   12.2   14.1   20.7    20.7      90. CUFT/YR   63.% BC1,  21.% BE1,  13.% WA1,   2.% RL1
+      MORTALITY       2.1    3.5    7.0   11.8   16.0    20.7       0. CUFT/YR   47.% BC1,  38.% BE1,  10.% HT1,   5.% RL1
+
+
+
+2034  TREES           1.7    1.7    1.7    2.5    3.7    21.3    1185. TREES     49.% WA1,  44.% BE1,   6.% BC1,   1.% RL1
+      VOLUME:  
+        TOTAL         3.7   12.7   13.9   14.7   21.3    21.3    2982. CUFT      86.% BC1,   9.% BE1,   3.% RL1,   2.% WA1
+        MERCH        11.8   13.5   14.6   16.6   21.3    21.3    2610. CUFT      96.% BC1,   3.% RL1,   1.% HT1,   0.% ---
+        CUBIC SAW    12.7   13.9   14.7   16.6   21.3    21.3    1885. CUFT      97.% BC1,   3.% RL1,   0.% ---,   0.% ---
+        MERCH        12.7   13.9   14.7   21.3   21.3    21.3   11326. BDFT      97.% BC1,   3.% RL1,   0.% ---,   0.% ---
+
+
+      REMOVAL         1.7    1.7    1.7    2.5    3.7    21.3     474. TREES     49.% WA1,  44.% BE1,   6.% BC1,   1.% RL1
+      VOLUME:  
+        TOTAL         3.7   12.7   13.9   14.7   21.3    21.3    1193. CUFT      86.% BC1,   9.% BE1,   3.% RL1,   2.% WA1
+        MERCH        11.8   13.5   14.6   16.6   21.3    21.3    1044. CUFT      96.% BC1,   3.% RL1,   1.% HT1,   0.% ---
+        CUBIC SAW    12.7   13.9   14.7   16.6   21.3    21.3     754. CUFT      97.% BC1,   3.% RL1,   0.% ---,   0.% ---
+        MERCH        12.7   13.9   14.7   21.3   21.3    21.3    4530. BDFT      97.% BC1,   3.% RL1,   0.% ---,   0.% ---
+
+
+      RESIDUAL        1.7    1.7    1.7    2.5    3.7    21.3     711. TREES     49.% WA1,  44.% BE1,   6.% BC1,   1.% RL1
+
+
+      ACCRETION       1.7    2.5   12.7   14.6   21.3    21.3      63. CUFT/YR   60.% BC1,  19.% WA1,  18.% BE1,   1.% RL1
+      MORTALITY       1.7    2.2    3.2    7.1   13.9    21.3       0. CUFT/YR   37.% BE1,  27.% WA1,  26.% BC1,   7.% HT1
+
+
+
+2039  TREES           0.4    0.9    2.4    2.7    3.5    21.9    1037. TREES     34.% WA1,  30.% BE1,  18.% WA2,  12.% BE2
+      VOLUME:  
+        TOTAL         3.5   13.3   14.4   15.3   21.9    21.9    2104. CUFT      82.% BC1,  10.% BE1,   5.% WA1,   2.% RL1
+        MERCH        12.4   14.1   15.2   17.3   21.9    21.9    1765. CUFT      96.% BC1,   3.% RL1,   1.% HT1,   0.% ---
+        CUBIC SAW    13.3   14.1   15.2   17.3   21.9    21.9    1323. CUFT      97.% BC1,   3.% RL1,   0.% ---,   0.% ---
+        MERCH        13.3   14.4   15.3   17.3   21.9    21.9    8207. BDFT      97.% BC1,   3.% RL1,   0.% ---,   0.% ---
+
+
+      ACCRETION       2.4    2.4    8.5   14.1   17.3    21.9      78. CUFT/YR   50.% BC1,  29.% WA1,  16.% BE1,   3.% BE2
+      MORTALITY       2.4    2.4    2.8    4.0   12.9    21.9       0. CUFT/YR   43.% WA1,  31.% BE1,  18.% BC1,   5.% HT1
+
+
+
+2044  TREES           1.1    1.7    3.1    3.1    3.7    22.6    1030. TREES     33.% WA1,  30.% BE1,  18.% WA2,  12.% BE2
+      VOLUME:  
+        TOTAL         3.1   13.0   14.5   15.8   22.6    22.6    2493. CUFT      77.% BC1,  11.% BE1,   8.% WA1,   2.% RL1
+        MERCH        13.0   13.9   15.7   17.9   22.6    22.6    1963. CUFT      96.% BC1,   3.% RL1,   1.% HT1,   0.% ---
+        CUBIC SAW    13.8   14.5   15.7   17.9   22.6    22.6    1511. CUFT      97.% BC1,   3.% RL1,   0.% ---,   0.% ---
+        MERCH        13.8   14.5   15.8   17.9   22.6    22.6    9393. BDFT      97.% BC1,   3.% RL1,   0.% ---,   0.% ---
+
+
+      REMOVAL         1.1    1.7    3.1    3.1    3.7    22.6     412. TREES     33.% WA1,  30.% BE1,  18.% WA2,  12.% BE2
+      VOLUME:  
+        TOTAL         3.1   13.0   14.5   15.8   22.6    22.6     997. CUFT      77.% BC1,  11.% BE1,   8.% WA1,   2.% RL1
+        MERCH        13.0   13.9   15.7   17.9   22.6    22.6     785. CUFT      96.% BC1,   3.% RL1,   1.% HT1,   0.% ---
+        CUBIC SAW    13.8   14.5   15.7   17.9   22.6    22.6     604. CUFT      97.% BC1,   3.% RL1,   0.% ---,   0.% ---
+        MERCH        13.8   14.5   15.8   17.9   22.6    22.6    3757. BDFT      97.% BC1,   3.% RL1,   0.% ---,   0.% ---
+
+
+      RESIDUAL        1.1    1.7    3.1    3.1    3.7    22.6     618. TREES     33.% WA1,  30.% BE1,  18.% WA2,  12.% BE2
+
+
+      ACCRETION       3.0    3.1    3.7   13.9   17.9    22.6      60. CUFT/YR   45.% BC1,  29.% WA1,  17.% BE1,   7.% WA2
+      MORTALITY       3.1    3.1    3.1    3.2   10.1    22.6       0. CUFT/YR   59.% WA1,  24.% BE1,  10.% BC1,   3.% HT1
+
+
+
+2049  TREES           0.4    0.9    2.4    3.9    3.9    23.3     904. TREES     31.% WA2,  23.% WA1,  21.% BE1,  20.% BE2
+      VOLUME:  
+        TOTAL         3.9   10.8   15.2   16.4   23.3    23.3    1796. CUFT      72.% BC1,  12.% BE1,  12.% WA1,   2.% RL1
+        MERCH        13.6   14.6   16.4   18.5   23.3    23.3    1320. CUFT      96.% BC1,   3.% RL1,   1.% HT1,   0.% ---
+        CUBIC SAW    14.5   15.2   16.4   18.5   23.3    23.3    1041. CUFT      97.% BC1,   3.% RL1,   0.% ---,   0.% ---
+        MERCH        14.5   15.2   16.4   18.5   23.3    23.3    6740. BDFT      97.% BC1,   3.% RL1,   0.% ---,   0.% ---
+
+
+      ACCRETION       2.4    3.9    3.9   14.0   16.4    23.3      76. CUFT/YR   36.% WA1,  36.% BC1,  12.% WA2,  11.% BE1
+      MORTALITY       2.4    3.9    3.9    3.9    4.4    23.3       1. CUFT/YR   59.% WA1,  20.% BE1,   9.% WA2,   7.% BC1
+
+
+
+2054  TREES           1.1    1.7    3.1    4.1    4.6    23.9     897. TREES     31.% WA2,  23.% WA1,  21.% BE1,  20.% BE2
+      VOLUME:  
+        TOTAL         3.8    4.6   15.2   17.1   23.9    23.9    2176. CUFT      65.% BC1,  16.% WA1,  12.% BE1,   3.% WA2
+        MERCH        14.2   15.2   17.1   19.2   23.9    23.9    1460. CUFT      97.% BC1,   3.% RL1,   1.% HT1,   0.% ---
+        CUBIC SAW    14.5   15.8   17.1   19.2   23.9    23.9    1195. CUFT      97.% BC1,   3.% RL1,   0.% ---,   0.% ---
+        MERCH        15.1   15.8   17.1   19.2   23.9    23.9    7644. BDFT      97.% BC1,   3.% RL1,   0.% ---,   0.% ---
+
+
+     FOREST VEGETATION SIMULATOR     VERSION FS2025.4 -- NORTHEAST                              RV:20250930    05-07-2026  11:40:30
+
+STAND ID: MBB_BAU                       MGMT ID: WV       
+
+
+------------------------------------------------------------------------------------------------------------------------------
+                     ATTRIBUTES OF SELECTED SAMPLE TREES                 ADDITIONAL STAND ATTRIBUTES (BASED ON STOCKABLE AREA)
+      -----------------------------------------------------------------  -----------------------------------------------------
+      INITIAL                           LIVE   PAST DBH  BASAL   TREES          QUADRATIC   TREES    BASAL  TOP HEIGHT       
+      TREES/A            DBH    HEIGHT  CROWN   GROWTH   AREA     PER    STAND   MEAN DBH    PER     AREA     LARGEST       
+YEAR   %TILE  SPECIES (INCHES)  (FEET)  RATIO  (INCHES)  %TILE    ACRE   AGE     (INCHES)    ACRE   (SQFT/A) 40/A (FT)        
+----  ------- ------- -------- -------- ------ --------- ------- ------  -----  ---------   ------ --------- --------- -------
+
+2024                                          (  7 YRS)
+
+        10     WA1       0.10     1.01    30     0.00      0.0  150.00
+        30     WA1       0.10     1.01    30     0.00      0.0  450.00
+        50     WA1       0.10     1.01    30     0.00      0.0  450.00
+        70     BE1       1.60    17.00    40     0.13      3.5   75.00
+        90     BE1       3.20    32.00    55     1.62     13.9   75.00
+       100     BC1      20.10    80.00    30     0.94    100.0    6.00
+                                                                          60       3.4     1203.      75.       83.3
+
+2029                                          (  5 YRS)
+
+        10     WA1       0.80     7.25    29     0.63      0.6  148.42
+        30     WA1       0.83     7.42    29     0.66      2.5  445.25
+        50     WA1       0.83     7.42    29     0.66      2.5  445.25
+        70     BE1       2.06    21.07    38     0.42      9.7   74.74
+        90     BE1       3.49    35.20    52     0.26     19.3   74.82
+       100     BC1      20.68    83.63    32     0.55    100.0    6.00
+                                                                          65       3.7     1195.      87.       86.1
+
+2034                                          (  5 YRS)
+
+        10     WA1       1.69    13.52    29     0.80      9.1  146.49
+        30     WA1       1.69    13.52    29     0.78      6.9  439.50
+        50     WA1       1.69    13.52    29     0.78      6.9  439.50
+        70     BE1       2.52    25.45    36     0.41     18.1   74.42
+        90     BE1       3.75    38.10    49     0.23     27.5   74.59
+       100     BC1      21.28    87.24    34     0.56    100.0    6.00
+                                                                          70       4.0     1185.     105.       89.5
+                                                                     RESIDUAL:     4.0      711.      63.       84.8
+
+2039 **                                       (  5 YRS)
+
+        10     BE2       0.40     6.14    67     0.00      0.1   17.87
+        30     WA2       0.94     8.06    67     0.00      1.2   46.88
+        50     WA1       2.41    19.31    30     0.65     16.3  260.81
+        70     BE1       2.66    28.14    35     0.38     18.5   44.47
+        90     BE1       3.45    31.69    56     0.24     30.0   44.53
+       100     BC1      21.94    90.73    36     0.62    100.0    3.60
+                                                                          75       3.7     1037.      76.       88.0
+
+2044                                          (  5 YRS)
+
+        10     BE2       1.11    10.78    64     0.63      0.6   17.78
+        30     WA2       1.74    13.87    64     0.72      3.9   46.34
+        50     WA1       3.11    24.54    32     0.63     21.9  258.37
+        70     BE1       3.01    31.65    35     0.32      7.3   44.32
+        90     BE1       3.70    34.70    53     0.22     38.1   44.39
+       100     BC1      22.63    94.22    38     0.65    100.0    3.60
+                                                                          80       4.1     1030.      94.       91.0
+                                                                     RESIDUAL:     4.1      618.      56.       72.8
+
+2049 **                                       (  5 YRS)
+
+        10     BE2       0.38     6.05    67     0.00      0.1   10.64
+        30     WA2       0.89     7.74    67     0.00      0.9   44.49
+        50     WA2       2.39    19.21    61     0.67      6.4   82.38
+        70     WA1       3.86    29.60    34     0.68     36.7  153.58
+        90     WA1       3.88    29.63    34     0.68     42.7   51.19
+       100     BC1      23.27    97.08    40     0.60    100.0    2.16
+                                                                          85       3.8      904.      70.       75.5
+
+2054                                          (  5 YRS)
+
+        10     BE2       1.14    11.01    64     0.68      0.6   10.58
+        30     WA2       1.71    13.68    64     0.74      3.5   43.93
+        50     WA2       3.13    24.90    58     0.67     14.2   81.58
+        70     WA1       4.59    33.61    34     0.65     49.7  152.44
+        90     WA1       4.63    33.84    34     0.67     56.5   50.81
+       100     BC1      23.89    99.74    42     0.59    100.0    2.16
+                                                                          90       4.2      897.      87.       74.0
+
+** NOTE:  DUE TO HARVEST, COMPRESSION, OR REGENERATION ESTABLISHMENT, NEW SAMPLE TREES WERE SELECTED.
+
+
+     FOREST VEGETATION SIMULATOR     VERSION FS2025.4 -- NORTHEAST                              RV:20250930    05-07-2026  11:40:30
+
+STAND ID: MBB_BAU                       MGMT ID: WV      
+
+
+
+                                         SUMMARY STATISTICS (PER ACRE OR STAND BASED ON TOTAL STAND AREA)
+--------------------------------------------------------------------------------------------------------------------------------------------------
+                      START OF SIMULATION PERIOD                       REMOVALS               AFTER TREATMENT     GROWTH THIS PERIOD
+         --------------------------------------------------- ----------------------------- ---------------------  ------------------   MAI  ------
+         NO OF              TOP      TOTAL MERCH SAWLG MERCH NO OF TOTAL MERCH SAWLG MERCH              TOP  RES  PERIOD ACCRE MORT   MERCH FOR SS
+YEAR AGE TREES  BA  SDI CCF HT  QMD  CU FT CU FT CU FT BD FT TREES CU FT CU FT CU FT BD FT  BA  SDI CCF HT   QMD  YEARS   PER  YEAR   CU FT TYP ZT
+---- --- ----- --- ---- --- --- ---- ----- ----- ----- ----- ----- ----- ----- ----- ----- --- ---- --- --- ----  ------ ---- -----   ----- ------
+2024  60  1203  75  141 154  83  3.4  2188  2027  1253  7362     0     0     0     0     0  75  141 154  83  3.4       5   69     0    33.8 802 13
+2029  65  1195  87  171 186  86  3.7  2533  2316  1586  9646     0     0     0     0     0  87  171 186  86  3.7       5   90     0    35.6 802 13
+2034  70  1185 105  215 241  90  4.0  2982  2610  1885 11326   474  1193  1044   754  4530  63  129 145  85  4.0       5   63     0    37.3 802 13
+2039  75  1037  76  161 186  88  3.7  2104  1765  1323  8207     0     0     0     0     0  76  161 186  88  3.7       5   78     0    37.5 803 13
+2044  80  1030  94  201 242  91  4.1  2493  1963  1511  9393   412   997   785   604  3757  56  121 145  73  4.1       5   60     0    37.6 803 33
+2049  85   904  70  152 191  75  3.8  1796  1320  1041  6740     0     0     0     0     0  70  152 191  75  3.8       5   76     1    37.0 706 32
+2054  90   897  87  190 250  74  4.2  2176  1460  1195  7644     0     0     0     0     0  87  190 250  74  4.2       0    0     0    36.5 706 32
+
+
+
+
+                                                     ACTIVITY SUMMARY 
+
+STAND ID= MBB_BAU                       MGMT ID= WV                                                                              
+
+----------------------------------------------------------------------------------------------------------------------------------
+
+CYCLE  DATE  EXTENSION  KEYWORD   DATE  ACTIVITY DISPOSITION  PARAMETERS:
+-----  ----  ---------  --------  ----  --------------------  --------------------------------------------------------------------
+
+   1   2024
+               BASE     CUTLIST   2024  NOT DONE                   0.0000     0.0000
+               BASE     ATRTLIST  2024  NOT DONE                   0.0000     0.0000
+               CMPU     BATARGET  2024  DONE IN 2024              44.9655
+               BASE     TREELIST  2024  DONE IN 2028               0.0000     0.0000
+
+   2   2029
+               BASE     CUTLIST   2029  NOT DONE                   0.0000     0.0000
+               BASE     ATRTLIST  2029  NOT DONE                   0.0000     0.0000
+               CMPU     BATARGET  2029  DONE IN 2029              52.3798
+               BASE     TREELIST  2029  DONE IN 2033               0.0000     0.0000
+
+   3   2034
+               CMPU     BATARGET  2034  DONE IN 2034              63.1389
+               BASE     THINDBH   2034  DONE IN 2034               0.0000   999.0000     0.4000     0.0000     0.0000    63.1389
+               BASE     CUTLIST   2034  DONE IN 2034               0.0000     0.0000
+               BASE     ATRTLIST  2034  DONE IN 2034               0.0000     0.0000
+               BASE     TREELIST  2034  DONE IN 2038               0.0000     0.0000
+
+   4   2039
+               BASE     CUTLIST   2039  NOT DONE                   0.0000     0.0000
+               BASE     ATRTLIST  2039  NOT DONE                   0.0000     0.0000
+               CMPU     BATARGET  2039  DONE IN 2039              45.8992
+               BASE     TREELIST  2039  DONE IN 2043               0.0000     0.0000
+
+   5   2044
+               CMPU     BATARGET  2044  DONE IN 2044              56.1169
+               BASE     THINDBH   2044  DONE IN 2044               0.0000   999.0000     0.4000     0.0000     0.0000    56.1169
+               BASE     CUTLIST   2044  DONE IN 2044               0.0000     0.0000
+               BASE     ATRTLIST  2044  DONE IN 2044               0.0000     0.0000
+               BASE     TREELIST  2044  DONE IN 2048               0.0000     0.0000
+
+   6   2049
+               BASE     CUTLIST   2049  NOT DONE                   0.0000     0.0000
+               BASE     ATRTLIST  2049  NOT DONE                   0.0000     0.0000
+               CMPU     BATARGET  2049  DONE IN 2049              41.9004
+               BASE     TREELIST  2049  DONE IN 2053               0.0000     0.0000
+----------------------------------------------------------------------------------------------------------------------------------
+------------------------------------------------------
+REGENERATION FROM STUMP & ROOT SPROUTS
+ 
+STAND ID: MBB_BAU                     MANAGEMENT CODE: WV    YEAR:  2038
+ 
+             TREES  AVERAGE
+    SPECIES  /ACRE  HEIGHT
+    -------  -----  -------
+       WA     188.     7.8
+       BC      15.     7.6
+       RL       2.     6.7
+       BE     125.     6.0
+       HT       2.     5.8
+             -----
+              331.
+------------------------------------------------------
+------------------------------------------------------
+REGENERATION FROM STUMP & ROOT SPROUTS
+ 
+STAND ID: MBB_BAU                     MANAGEMENT CODE: WV    YEAR:  2048
+ 
+             TREES  AVERAGE
+    SPECIES  /ACRE  HEIGHT
+    -------  -----  -------
+       WA     170.     7.7
+       BC      14.     7.8
+       RL       1.     6.5
+       BE     104.     5.9
+       HT       1.     6.1
+             -----
+              290.
+------------------------------------------------------
+
+Structural statistics for stand: MBB_BAU                     MgmtID: WV
+
+        ------------ Stratum 1 ------------ ------------ Stratum 2 ------------ ------------ Stratum 3 ------------
+     Rm       ---Height-- -Crown- -Major- C       ---Height-- -Crown- -Major- C       ---Height-- -Crown- -Major- C N Tot Struc
+Year Cd  DBH  Nom  Lg  Sm Bas Cov Sp1 Sp2 D  DBH  Nom  Lg  Sm Bas Cov Sp1 Sp2 D  DBH  Nom  Lg  Sm Bas Cov Sp1 Sp2 D S Cov Class
+---- -- ----- --- --- --- --- --- --- --- - ----- --- --- --- --- --- --- --- - ----- --- --- --- --- --- --- --- - - --- -----
+2024  0  14.2  79  94  46  59  41 BC  RL  2   2.0  20  32  15   9  33 BE  HT  1   0.1   1   1   1   1   0 WA  BE  0 2  61  3=UR
+2024  1  14.2  79  94  46  59  41 BC  RL  2   2.0  20  32  15   9  33 BE  HT  1   0.1   1   1   1   1   0 WA  BE  0 2  61  3=UR
+2029  0  14.7  82  97  51  61  43 BC  RL  2   2.4  24  35  20  11  41 BE  HT  1   0.8   7   7   5   5   4 WA  BE  0 2  68  3=UR
+2029  1  14.7  82  97  51  61  43 BC  RL  2   2.4  24  35  20  11  41 BE  HT  1   0.8   7   7   5   5   4 WA  BE  0 2  68  3=UR
+2034  0  15.3  86  99  55  63  46 BC  RL  2   2.8  28  38  24  14  49 BE  HT  1   1.6  13  14  10   9  15 WA  BE  1 3  76  4=YM
+2034  1  15.3  86  99  55  63  31 BC  RL  2   2.8  28  38  24  14  33 BE  HT  1   1.6  13  14  10   9   9 WA  BE  1 3  58  4=YM
+2039  0  15.9  89 102  59  64  33 BC  RL  2   2.8  25  41   6  10  51 BE  WA  1   0.0   0   0   0   0   0 --  --  0 2  67  3=UR
+2039  1  15.9  89 102  59  64  33 BC  RL  2   2.8  25  41   6  10  51 BE  WA  1   0.0   0   0   0   0   0 --  --  0 2  67  3=UR
+2044  0  16.4  92 104  64  65  34 BC  RL  2   3.4  32  43  10  13  63 BE  WA  1   0.0   0   0   0   0   0 --  --  0 2  76  3=UR
+2044  1  16.4  92 104  64  65  22 BC  RL  2   3.4  32  43  10  13  45 BE  WA  1   0.0   0   0   0   0   0 --  --  0 2  58  3=UR
+2049  0  17.1  94 106  68  66  24 BC  RL  2   3.8  33  45   5  11  58 BE  WA  1   0.0   0   0   0   0   0 --  --  0 2  68  3=UR
+2049  1  17.1  94 106  68  66  24 BC  RL  2   3.8  33  45   5  11  58 BE  WA  1   0.0   0   0   0   0   0 --  --  0 2  68  3=UR
+2054  0  17.7  97 108  72  67  25 BC  RL  2   4.1  34  47  10  13  69 WA  BE  1   0.0   0   0   0   0   0 --  --  0 2  77  3=UR

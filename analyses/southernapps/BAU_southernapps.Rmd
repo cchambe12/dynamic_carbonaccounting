@@ -15,7 +15,7 @@ output:
 
 ## Selecting FIA data
 
-For initial exploration of the data, we will first get FIA plots from **AL, GA, KY, NC, SC, TN, and VA**. We are downloading data directly from DataMart for most up to date information. Please modify the above states as necessary. We are then subsetting to ecosections **221, 223, 231, M221**. Again, please modify as necessary.  
+For initial exploration of the data, we will first get FIA plots from **AL, GA, KY, NC, SC, TN, and VA**. We are downloading data directly from DataMart for most up to date information. Please modify the above states as necessary. We are then subsetting to ecosections **231, M221**. Again, please modify as necessary.  
 
 To clean the data, we are only selecting FIA data that was measured in 1997 or later, when annualized data began. Finally, we are selecting plots that:
 
@@ -62,7 +62,7 @@ fullstatelist <- c("Alabama", "Georgia", "Kentucky", "North Carolina",
 region <- "southernapps"  #**ENTER REGION FOLDER NAME HERE**
 
 if(use.ecosections==TRUE){
-ecosubstokeep <- c("221", "223", "231", "M221")  #**ENTER ECOSECTIONS HERE**
+ecosubstokeep <- c("231", "M221")  #**ENTER ECOSECTIONS HERE**
 }
 
 

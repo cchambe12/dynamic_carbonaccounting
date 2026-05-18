@@ -55,8 +55,7 @@ class PlotCollection:
         # Configure the query string and query the PLOT table
         qstr = f"SELECT CN FROM PLOT WHERE \
                 DESIGNCD = 1 \
-                AND INVYR >= {self.inv_range.min} AND INVYR <= {self.inv_range.max} \
-                AND SUBSTR(REPLACE(ECOSUBCD, ' ', ''), 1, 3) = '{self.ecoregion}';"
+                AND INVYR >= {self.inv_range.min} AND INVYR <= {self.inv_range.max};"
         plots = pd.read_sql_query(qstr, db)
 
         # Configure the query string and query the CONDITION table

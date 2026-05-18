@@ -1,5 +1,6 @@
 ### Calculate Carbon Gains
 ## Started 27 October 2024 by Cat
+## Updated 7 May 2026
 
 
 ### housekeeping
@@ -27,7 +28,7 @@ setwd("~/Documents/git/dynamic_carbonaccounting/analyses/northwoods/fvs/02_carbo
 datafolder <- "~/Documents/git/dynamic_carbonaccounting/analyses/northwoods/fvs/02_carbonaccounting/output/"
 
 ## Are you assessing Maple / beech / birch or Oak / hickory? If Oak / Hickory then say TRUE
-useoak <- FALSE
+useoak <- TRUE
 
 #Read in key files
 #Save key files
@@ -43,9 +44,11 @@ mbb <- read.csv("../../output/clean_northwoods_fiadata.csv") %>%
   ungroup() %>% distinct()
 
 remv1mbb = mean(mbb$baac.perc.cut.prev.prev[mbb$baac.perc.cut.prev.prev>0])
+remv2mbb = mean(mbb$baac.perc.cut.prev[mbb$baac.perc.cut.prev>0])
 remv3mbb = mean(mbb$baac.perc.cut[mbb$baac.perc.cut>0])
 
 hl1mbb <- unique(round((nrow(mbb[mbb$harv3==1,])/nrow(mbb)) * (20/(mbb$timediff)), digits=2))
+hl2mbb <- unique(round((nrow(mbb[mbb$harv2==1,])/nrow(mbb)) * (20/(mbb$timediff)), digits=2))
 hl3mbb <- unique(round((nrow(mbb[mbb$harv1==1,])/nrow(mbb)) * (20/(mbb$timediff)), digits=2))
 
 oh <- read.csv("../../output/clean_northwoods_fiadata.csv") %>%
@@ -56,25 +59,29 @@ oh <- read.csv("../../output/clean_northwoods_fiadata.csv") %>%
   ungroup() %>% distinct()
 
 remv1oh = mean(oh$baac.perc.cut.prev.prev[oh$baac.perc.cut.prev.prev>0])
+remv2oh = mean(oh$baac.perc.cut.prev[oh$baac.perc.cut.prev>0])
 remv3oh = mean(oh$baac.perc.cut[oh$baac.perc.cut>0])
 
 hl1oh <- unique(round((nrow(oh[oh$harv3==1,])/nrow(oh)) * (20/(oh$timediff)), digits=2))
+hl2oh <- unique(round((nrow(oh[oh$harv2==1,])/nrow(oh)) * (20/(oh$timediff)), digits=2))
 hl3oh <- unique(round((nrow(oh[oh$harv1==1,])/nrow(oh)) * (20/(oh$timediff)), digits=2))
 
 #### Select inputs
 if(useoak == TRUE){
   i <- "oak"
   ## What is the harvest likelihood over the 20-year period
-  oakrate <- 0.28
+  oakrate <- 0.43
   
   oakrate1 = hl1oh
+  oakrate2 = hl2oh
   oakrate3 = hl3oh
   
 }else{
   i <- "mbb"
-  mbbrate <- 0.43
+  mbbrate <- 0.67
   
   mbbrate1 = hl1mbb
+  mbbrate2 = hl2mbb
   mbbrate3 = hl3mbb
   
 }
@@ -84,11 +91,11 @@ timestamp <- 20
 #### Get the FIA data from the prefeasibility scoping with eligibility thresholds
 if(useoak == TRUE){
   i <- "oak"
-  bau <- read.csv( "output/clean_northwoods_fiadata.csv") %>%
+  bau <- read.csv( "../../output/clean_northwoods_fiadata.csv") %>%
     filter(forestname == "Oak / hickory group")
 }else {
   i <- "mbb"
-  bau <- read.csv( "output/clean_northwoods_fiadata.csv") %>%
+  bau <- read.csv( "../../output/clean_northwoods_fiadata.csv") %>%
     filter(forestname == "Maple / beech / birch group")
 }
 
@@ -212,8 +219,9 @@ if(useoak == TRUE){
       #calc.oak.gmf.comp = (OAK_GMF*oakrate + OAK_GROW*(1-oakrate))*(44/12), 
       calc.oak.bau = (OAK_BAU*oakrate)*(44/12), 
       calc.oak.bau.comp = (OAK_BAU*oakrate + OAK_GROW*(1-oakrate))*(44/12), #
-      calc.oak.bau.comp.blend = ifelse(time<15, OAK_BAU*oakrate1 + OAK_GROW*(1-oakrate1)*(44/12),
-                                       OAK_BAU*oakrate3 + OAK_GROW*(1-oakrate3)*(44/12)), #
+      calc.oak.bau.comp.blend = ifelse(time<=15, OAK_BAU*oakrate1 + OAK_GROW*(1-oakrate1)*(44/12),
+                                       ifelse(time <= 10, OAK_BAU*oakrate2 + OAK_GROW*(1-oakrate2)*(44/12),
+                                              ifelse(time <= 5, OAK_BAU*oakrate3 + OAK_GROW*(1-oakrate3)*(44/12), NA))), #
       calc.oak.grow = OAK_GROW*(44/12),
       #Calculate deltas
       #delta.oak.gmf = calc.oak.gmf - calc.oak.bau,
@@ -241,8 +249,9 @@ if(useoak == TRUE){
       #calc.mbb.gmf.comp = (MBB_GMF*mbbrate + MBB_GROW*(1-mbbrate))*(44/12), 
       calc.mbb.bau = (MBB_BAU*mbbrate)*(44/12), 
       calc.mbb.bau.comp = (MBB_BAU*mbbrate + MBB_GROW*(1-mbbrate))*(44/12), #
-      calc.mbb.bau.comp.blend = ifelse(time<15, MBB_BAU*mbbrate1 + MBB_GROW*(1-mbbrate1)*(44/12),
-                                       MBB_BAU*mbbrate3 + MBB_GROW*(1-mbbrate3)*(44/12)), #
+      calc.mbb.bau.comp.blend = ifelse(time<=15, MBB_BAU*mbbrate1 + MBB_GROW*(1-mbbrate1)*(44/12),
+                                       ifelse(time <= 10, MBB_BAU*mbbrate2 + MBB_GROW*(1-mbbrate2)*(44/12),
+                                              ifelse(time <= 5, MBB_BAU*mbbrate3 + MBB_GROW*(1-mbbrate3)*(44/12), NA))), #
       calc.mbb.grow = MBB_GROW*(44/12),
       #Calculate deltas
       #delta.mbb.gmf = calc.mbb.gmf - calc.mbb.bau,
